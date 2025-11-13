@@ -31,8 +31,26 @@ app.get("/", (req, res) => {
   res.send("Server running successfully!");
 });
 
-app.post("/register", (req, res) => {
-  res.json({ message: "User registered successfully", data: req.body });
+app.post("/register", async (req, res) => {
+  const token = req.headers.authorization?.split("Bearer ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized - No token provided" });
+
+  try {
+    // ✅ Verify token from Firebase Auth
+    const decoded = await admin.auth().verifyIdToken(token);
+    console.log("Decoded Firebase user:", decoded);
+
+    // ✅ Extract and log user data
+    const { name, email, role, position, experience } = req.body;
+    console.log("New User Data:", { name, email, role, position, experience });
+
+    // ✅ You could store user info into database (e.g. Firestore, MongoDB, etc.)
+    // For now just send response
+    res.json({ message: "User registered successfully", firebaseUid: decoded.uid, data: req.body });
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
 });
 
 app.post("/login", (req, res) => {

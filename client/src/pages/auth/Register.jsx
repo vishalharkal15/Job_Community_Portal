@@ -1,333 +1,299 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import axios from 'axios'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../../firebase/firebaseConfig.js";
 
 function Register() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    mobile: '',
-    address: '',
-    role: '',
-    position: '',
-    experience: '',
+    name: "",
+    email: "",
+    password: "",
+    mobile: "",
+    address: "",
+    role: "",
+    position: "",
+    experience: "",
     cvFile: null,
     certificationFile: null,
-    acceptTerms: false
-  })
-  
-  const [errors, setErrors] = useState({})
-  const [successMessage, setSuccessMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+    acceptTerms: false,
+  });
 
+  const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // ✅ handle input change
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData(prev => ({
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-    // Clear error for this field when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
-    }
-  }
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
 
+  // ✅ handle file uploads
   const handleFileChange = (e) => {
-    const { name, files } = e.target
-    const file = files[0]
-    
-    if (file) {
-      // Validate file type for certification (only PDF)
-      if (name === 'certificationFile' && file.type !== 'application/pdf') {
-        setErrors(prev => ({ ...prev, [name]: 'Only PDF files are allowed for certification' }))
-        e.target.value = '' // Clear the file input
-        return
-      }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, [name]: 'File size must be less than 5MB' }))
-        e.target.value = '' // Clear the file input
-        return
-      }
-      
-      setFormData(prev => ({
+    const { name, files } = e.target;
+    const file = files[0];
+    if (!file) return;
+
+    if (name === "certificationFile" && file.type !== "application/pdf") {
+      setErrors((prev) => ({
         ...prev,
-        [name]: file
-      }))
-      
-      // Clear error for this field
-      if (errors[name]) {
-        setErrors(prev => ({ ...prev, [name]: '' }))
-      }
+        [name]: "Only PDF files allowed for certification",
+      }));
+      e.target.value = "";
+      return;
     }
-  }
 
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "File size must be less than 5MB",
+      }));
+      e.target.value = "";
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: file }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  // ✅ form validation
   const validateForm = () => {
-    const newErrors = {}
-    
-    if (!formData.name.trim()) newErrors.name = 'Name is required'
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid'
-    }
-    if (!formData.password.trim()) {
-      newErrors.password = 'Password is required'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
-    }
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = 'Mobile number is required'
-    } else if (!/^\d{10}$/.test(formData.mobile.replace(/\D/g, ''))) {
-      newErrors.mobile = 'Mobile number must be 10 digits'
-    }
-    if (!formData.address.trim()) newErrors.address = 'Address is required'
-    if (!formData.role) newErrors.role = 'Please select a role'
-    if (!formData.position.trim()) newErrors.position = 'Position is required'
-    if (!formData.experience.trim()) newErrors.experience = 'Experience is required'
-    if (!formData.cvFile) newErrors.cvFile = 'CV upload is required'
-    if (!formData.certificationFile) newErrors.certificationFile = 'Certification document is required'
-    if (!formData.acceptTerms) newErrors.acceptTerms = 'You must accept terms and conditions'
-    
-    return newErrors
-  }
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = "Invalid email";
+    if (!formData.password.trim()) newErrors.password = "Password is required";
+    else if (formData.password.length < 6)
+      newErrors.password = "At least 6 characters";
+    if (!formData.mobile.trim()) newErrors.mobile = "Mobile number is required";
+    else if (!/^\d{10}$/.test(formData.mobile))
+      newErrors.mobile = "Must be a 10-digit number";
+    if (!formData.address.trim()) newErrors.address = "Address required";
+    if (!formData.role) newErrors.role = "Select a role";
+    if (!formData.position.trim()) newErrors.position = "Position required";
+    if (!formData.experience.trim()) newErrors.experience = "Experience required";
+    if (!formData.cvFile) newErrors.cvFile = "Upload your CV";
+    if (!formData.certificationFile)
+      newErrors.certificationFile = "Upload your certification";
+    if (!formData.acceptTerms)
+      newErrors.acceptTerms = "You must accept the terms";
+    return newErrors;
+  };
 
+  // ✅ Email/Password Registration
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setSuccessMessage('')
-    
-    const newErrors = validateForm()
+    e.preventDefault();
+    setSuccessMessage("");
+    const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      return
+      setErrors(newErrors);
+      return;
     }
-    
-    setLoading(true)
-    
+
+    setLoading(true);
     try {
-      // Placeholder API call - simulating backend response until backend is ready
-      // Uncomment the line below when backend is implemented:
-      // await axios.post('/api/auth/register', formData)
-      
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log('Registration data:', formData)
-      
-      setSuccessMessage('Verification email sent. Please check your inbox.')
+      // 1️⃣ Create Firebase user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
+
+      // 2️⃣ Send email verification
+      await sendEmailVerification(user);
+
+      // 3️⃣ Get Firebase ID token
+      const token = await user.getIdToken();
+
+      // 4️⃣ Send form data to backend
+      await axios.post("http://localhost:5000/register", formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setSuccessMessage("Verification email sent! Please check your inbox.");
       setFormData({
-        name: '',
-        email: '',
-        password: '',
-        mobile: '',
-        address: '',
-        role: '',
-        position: '',
-        experience: '',
+        name: "",
+        email: "",
+        password: "",
+        mobile: "",
+        address: "",
+        role: "",
+        position: "",
+        experience: "",
         cvFile: null,
         certificationFile: null,
-        acceptTerms: false
-      })
-      // Reset file inputs
-      const fileInputs = document.querySelectorAll('input[type="file"]')
-      fileInputs.forEach(input => input.value = '')
-      setErrors({})
+        acceptTerms: false,
+      });
+      document.querySelectorAll('input[type="file"]').forEach((i) => (i.value = ""));
+      setErrors({});
     } catch (error) {
-      setErrors({ submit: error.response?.data?.message || 'Registration failed. Please try again.' })
+      setErrors({
+        submit: error.response?.data?.error || error.message || "Registration failed.",
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // ✅ Google Sign-in
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const token = await user.getIdToken();
+
+      await axios.post(
+        "http://localhost:5000/register",
+        { name: user.displayName, email: user.email, role: "job-seeker" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMessage("Google sign-in successful!");
+    } catch (error) {
+      setErrors({ submit: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-2xl mx-auto px-4 py-12">
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Register</h2>
-        
+        <h2 className="text-2xl font-bold text-center mb-6">Register</h2>
+
         {successMessage && (
-          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
+          <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-md">
             {successMessage}
           </div>
         )}
-        
         {errors.submit && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
             {errors.submit}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 👇 all inputs included */}
+          {[
+            { id: "name", label: "Full Name", type: "text" },
+            { id: "email", label: "Email", type: "email" },
+            { id: "password", label: "Password", type: "password" },
+            { id: "mobile", label: "Mobile", type: "tel" },
+            { id: "address", label: "Address", type: "textarea" },
+          ].map((field) => (
+            <div key={field.id}>
+              <label className="block mb-1 text-sm font-medium text-gray-700">
+                {field.label} <span className="text-red-500">*</span>
+              </label>
+              {field.type === "textarea" ? (
+                <textarea
+                  id={field.id}
+                  name={field.id}
+                  value={formData[field.id]}
+                  onChange={handleChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <input
+                  type={field.type}
+                  id={field.id}
+                  name={field.id}
+                  value={formData[field.id]}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+              {errors[field.id] && (
+                <p className="text-sm text-red-500 mt-1">{errors[field.id]}</p>
+              )}
+            </div>
+          ))}
+
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="Enter your full name"
-            />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="Enter your email"
-            />
-            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="Enter your password"
-            />
-            {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="mobile" className="block text-sm font-medium text-gray-700 mb-1">
-              Mobile <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              id="mobile"
-              name="mobile"
-              value={formData.mobile}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="Enter your mobile number"
-            />
-            {errors.mobile && <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
-              Address <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              rows="3"
-              className={`w-full px-3 py-2 border ${errors.address ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="Enter your address"
-            />
-            {errors.address && <p className="mt-1 text-sm text-red-500">{errors.address}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block mb-1 text-sm font-medium text-gray-700">
               Role <span className="text-red-500">*</span>
             </label>
             <select
-              id="role"
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.role ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a role</option>
               <option value="job-seeker">Job Seeker</option>
               <option value="recruiter">Recruiter</option>
               <option value="company">Company</option>
             </select>
-            {errors.role && <p className="mt-1 text-sm text-red-500">{errors.role}</p>}
+            {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
           </div>
-          
+
+          {["position", "experience"].map((field) => (
+            <div key={field}>
+              <label className="block mb-1 text-sm font-medium text-gray-700 capitalize">
+                {field} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id={field}
+                name={field}
+                value={formData[field]}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+              {errors[field] && (
+                <p className="text-sm text-red-500 mt-1">{errors[field]}</p>
+              )}
+            </div>
+          ))}
+
+          {/* File uploads */}
           <div>
-            <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">
-              Position <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="position"
-              name="position"
-              value={formData.position}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.position ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="e.g., Software Developer, HR Manager"
-            />
-            {errors.position && <p className="mt-1 text-sm text-red-500">{errors.position}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="experience" className="block text-sm font-medium text-gray-700 mb-1">
-              Experience <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="experience"
-              name="experience"
-              value={formData.experience}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.experience ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              placeholder="e.g., 3 years, Fresher"
-            />
-            {errors.experience && <p className="mt-1 text-sm text-red-500">{errors.experience}</p>}
-          </div>
-          
-          <div>
-            <label htmlFor="cvFile" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Upload CV <span className="text-red-500">*</span>
             </label>
             <input
               type="file"
-              id="cvFile"
               name="cvFile"
               onChange={handleFileChange}
               accept=".pdf,.doc,.docx"
-              className={`w-full px-3 py-2 border ${errors.cvFile ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`}
+              className="w-full"
             />
-            <p className="mt-1 text-xs text-gray-500">Accepted formats: PDF, DOC, DOCX (Max 5MB)</p>
-            {errors.cvFile && <p className="mt-1 text-sm text-red-500">{errors.cvFile}</p>}
-            {formData.cvFile && (
-              <p className="mt-1 text-sm text-green-600">✓ {formData.cvFile.name}</p>
+            {errors.cvFile && (
+              <p className="text-sm text-red-500">{errors.cvFile}</p>
             )}
           </div>
-          
+
           <div>
-            <label htmlFor="certificationFile" className="block text-sm font-medium text-gray-700 mb-1">
-              Upload Certification Document <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Upload Certification <span className="text-red-500">*</span>
             </label>
             <input
               type="file"
-              id="certificationFile"
               name="certificationFile"
               onChange={handleFileChange}
               accept=".pdf"
-              className={`w-full px-3 py-2 border ${errors.certificationFile ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`}
+              className="w-full"
             />
-            <p className="mt-1 text-xs text-gray-500">Only PDF format accepted (Max 5MB)</p>
-            {errors.certificationFile && <p className="mt-1 text-sm text-red-500">{errors.certificationFile}</p>}
-            {formData.certificationFile && (
-              <p className="mt-1 text-sm text-green-600">✓ {formData.certificationFile.name}</p>
+            {errors.certificationFile && (
+              <p className="text-sm text-red-500">{errors.certificationFile}</p>
             )}
           </div>
-          
+
           <div className="flex items-start">
             <input
               type="checkbox"
@@ -335,32 +301,43 @@ function Register() {
               name="acceptTerms"
               checked={formData.acceptTerms}
               onChange={handleChange}
-              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="mt-1 h-4 w-4 text-blue-600"
             />
-            <label htmlFor="acceptTerms" className="ml-2 block text-sm text-gray-700">
-              I accept the Terms and Conditions <span className="text-red-500">*</span>
+            <label htmlFor="acceptTerms" className="ml-2 text-sm text-gray-700">
+              I accept the Terms and Conditions
             </label>
           </div>
-          {errors.acceptTerms && <p className="mt-1 text-sm text-red-500">{errors.acceptTerms}</p>}
-          
+          {errors.acceptTerms && (
+            <p className="text-sm text-red-500">{errors.acceptTerms}</p>
+          )}
+
           <button
             type="submit"
             disabled={loading}
-            className={`w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-medium ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
           >
-            {loading ? 'Registering...' : 'Register'}
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
-        
+
+        {/* ✅ Google Sign-In Button */}
+        <button
+          onClick={handleGoogleSignIn}
+          className="w-full mt-4 border border-gray-300 py-2 rounded-md hover:bg-gray-100 flex justify-center items-center gap-2"
+        >
+          <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
+          Continue with Google
+        </button>
+
         <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link to="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          Already have an account?{" "}
+          <Link to="/auth/login" className="text-blue-600 hover:text-blue-700">
             Login here
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }
 
-export default Register
+export default Register;

@@ -10,15 +10,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Load Firebase service account file in ESM style
-const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url))
-);
-
-// ✅ Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// ✅ Load Firebase service account file in ESM style (if it exists)
+try {
+  const serviceAccount = JSON.parse(
+    fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url))
+  );
+  
+  // ✅ Initialize Firebase Admin
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  console.log("✅ Firebase Admin initialized successfully");
+} catch (error) {
+  console.warn("⚠️  Firebase Admin not initialized (serviceAccountKey.json not found)");
+  console.warn("   Server will run without Firebase Admin features");
+}
 
 // ✅ Example routes
 app.get("/", (req, res) => {

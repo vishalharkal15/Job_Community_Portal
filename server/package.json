@@ -1,0 +1,19 @@
+{
+  "name": "jcp-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^13.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

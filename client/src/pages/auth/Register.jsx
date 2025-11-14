@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   createUserWithEmailAndPassword,
@@ -19,8 +19,8 @@ function Register() {
     role: "",
     position: "",
     experience: "",
-    cvFile: null,
-    certificationFile: null,
+    cvUrl: "",
+    certificatesUrl: "",
     acceptTerms: false,
   });
 
@@ -28,7 +28,6 @@ function Register() {
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ handle input change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -38,35 +37,8 @@ function Register() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ✅ handle file uploads
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    const file = files[0];
-    if (!file) return;
+  const navigate = useNavigate();
 
-    if (name === "certificationFile" && file.type !== "application/pdf") {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "Only PDF files allowed for certification",
-      }));
-      e.target.value = "";
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "File size must be less than 5MB",
-      }));
-      e.target.value = "";
-      return;
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: file }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
-
-  // ✅ form validation
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required";
@@ -83,15 +55,14 @@ function Register() {
     if (!formData.role) newErrors.role = "Select a role";
     if (!formData.position.trim()) newErrors.position = "Position required";
     if (!formData.experience.trim()) newErrors.experience = "Experience required";
-    if (!formData.cvFile) newErrors.cvFile = "Upload your CV";
-    if (!formData.certificationFile)
-      newErrors.certificationFile = "Upload your certification";
+    if (!formData.cvUrl.trim()) newErrors.cvUrl = "CV URL is required";
+    if (!formData.certificatesUrl.trim())
+      newErrors.certificatesUrl = "Certification URL is required";
     if (!formData.acceptTerms)
       newErrors.acceptTerms = "You must accept the terms";
     return newErrors;
   };
 
-  // ✅ Email/Password Registration
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSuccessMessage("");
@@ -103,7 +74,6 @@ function Register() {
 
     setLoading(true);
     try {
-      // 1️⃣ Create Firebase user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         formData.email,
@@ -111,18 +81,24 @@ function Register() {
       );
       const user = userCredential.user;
 
-      // 2️⃣ Send email verification
       await sendEmailVerification(user);
 
-      // 3️⃣ Get Firebase ID token
       const token = await user.getIdToken();
 
-      // 4️⃣ Send form data to backend
-      await axios.post("http://localhost:5000/register", formData, {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = {};
+      Object.keys(formData).forEach((key) => {
+        if (key !== "password" && key !== "acceptTerms") {
+          payload[key] = formData[key];
+        }
       });
 
-      setSuccessMessage("Verification email sent! Please check your inbox.");
+      await axios.post("http://localhost:5000/register", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setSuccessMessage("Welcome ${formData.name}");
       setFormData({
         name: "",
         email: "",
@@ -132,11 +108,10 @@ function Register() {
         role: "",
         position: "",
         experience: "",
-        cvFile: null,
-        certificationFile: null,
+        cvUrl: "",
+        certificatesUrl: "",
         acceptTerms: false,
       });
-      document.querySelectorAll('input[type="file"]').forEach((i) => (i.value = ""));
       setErrors({});
     } catch (error) {
       setErrors({
@@ -147,7 +122,6 @@ function Register() {
     }
   };
 
-  // ✅ Google Sign-in
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
@@ -156,11 +130,18 @@ function Register() {
       const user = result.user;
       const token = await user.getIdToken();
 
-      await axios.post(
-        "http://localhost:5000/register",
-        { name: user.displayName, email: user.email, role: "job-seeker" },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const payload = {
+        name: user.displayName,
+        email: user.email,
+        role: "job-seeker",
+      };
+
+      await axios.post("http://localhost:5000/register", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       setSuccessMessage("Google sign-in successful!");
     } catch (error) {
@@ -169,6 +150,15 @@ function Register() {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        navigate("/");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -187,7 +177,6 @@ function Register() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 👇 all inputs included */}
           {[
             { id: "name", label: "Full Name", type: "text" },
             { id: "email", label: "Email", type: "email" },
@@ -261,36 +250,35 @@ function Register() {
             </div>
           ))}
 
-          {/* File uploads */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Upload CV <span className="text-red-500">*</span>
+              CV URL <span className="text-red-500">*</span>
             </label>
             <input
-              type="file"
-              name="cvFile"
-              onChange={handleFileChange}
-              accept=".pdf,.doc,.docx"
-              className="w-full"
+              type="url"
+              name="cvUrl"
+              value={formData.cvUrl}
+              onChange={handleChange}
+              placeholder="https://drive.google.com/..."
+              className="w-full px-3 py-2 border rounded-md"
             />
-            {errors.cvFile && (
-              <p className="text-sm text-red-500">{errors.cvFile}</p>
-            )}
+            {errors.cvUrl && <p className="text-sm text-red-500">{errors.cvUrl}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Upload Certification <span className="text-red-500">*</span>
+              Certification URL <span className="text-red-500">*</span>
             </label>
             <input
-              type="file"
-              name="certificationFile"
-              onChange={handleFileChange}
-              accept=".pdf"
-              className="w-full"
+              type="url"
+              name="certificatesUrl"
+              value={formData.certificatesUrl}
+              onChange={handleChange}
+              placeholder="https://drive.google.com/..."
+              className="w-full px-3 py-2 border rounded-md"
             />
-            {errors.certificationFile && (
-              <p className="text-sm text-red-500">{errors.certificationFile}</p>
+            {errors.certificatesUrl && (
+              <p className="text-sm text-red-500">{errors.certificatesUrl}</p>
             )}
           </div>
 
@@ -320,12 +308,11 @@ function Register() {
           </button>
         </form>
 
-        {/* ✅ Google Sign-In Button */}
         <button
           onClick={handleGoogleSignIn}
           className="w-full mt-4 border border-gray-300 py-2 rounded-md hover:bg-gray-100 flex justify-center items-center gap-2"
         >
-          <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
+          <img src="https://t4.ftcdn.net/jpg/03/08/54/37/360_F_308543787_DmPo1IELtKY9hG8E8GlW8KHEsRC7JiDN.jpg" alt="Google" className="w-5 h-5" />
           Continue with Google
         </button>
 

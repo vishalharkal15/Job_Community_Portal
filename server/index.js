@@ -10,6 +10,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const db = admin.firestore();
+
 // ✅ Load Firebase service account file in ESM style (if it exists)
 try {
   const serviceAccount = JSON.parse(
@@ -39,17 +41,30 @@ app.post("/register", async (req, res) => {
     // ✅ Verify token from Firebase Auth
     const decoded = await admin.auth().verifyIdToken(token);
     console.log("Decoded Firebase user:", decoded);
+    const uid = decoded.uid;
 
     // ✅ Extract and log user data
     const { name, email, role, position, experience } = req.body;
     console.log("New User Data:", { name, email, role, position, experience });
 
-    // ✅ You could store user info into database (e.g. Firestore, MongoDB, etc.)
-    // For now just send response
-    res.json({ message: "User registered successfully", firebaseUid: decoded.uid, data: req.body });
+    await db.collection("users").doc(uid).set({
+      uid,
+      name,
+      email,
+      mobile,
+      address,
+      role,
+      position,
+      experience,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.json({ 
+      message: "User registered & saved in Firestore successfully",
+      firebaseUid: uid 
+    });
   } catch (error) {
-    console.error("Token verification failed:", error);
-    res.status(401).json({ error: "Invalid or expired token" });
+    console.error("Error saving user:", error);
+    res.status(401).json({ error: "Server error" });
   }
 });
 

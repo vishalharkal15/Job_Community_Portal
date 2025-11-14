@@ -36,7 +36,7 @@ app.post("/register", async (req, res) => {
 
     const { name, email, mobile, address, role, position, experience, cvUrl, certificatesUrl } = req.body;
     console.log("New User Data:", { name, email, role, position, experience });
-    
+
     await db.collection("users").doc(uid).set({
       name,
       email,
@@ -47,15 +47,13 @@ app.post("/register", async (req, res) => {
       experience,
       cvUrl: cvUrl || null,
       certificatesUrl: certificatesUrl || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    },
-    { merge: true }
+    }, { merge: true }
   );
     res.json({ 
       message: "User registered & saved in Firestore successfully",
       firebaseUid: uid,
-      data: req.body,
     });
   } catch (error) {
     console.error("Error saving user:", error);

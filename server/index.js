@@ -88,5 +88,34 @@ app.post("/login", async(req, res) => {
   }
 });
 
+app.put("/update-profile", async (req, res) => {
+  const token = req.headers.authorization?.split("Bearer ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized - No token provided" });
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+
+    const { name, mobile, address, position, experience } = req.body;
+
+    await db.collection("users").doc(uid).set(
+      {
+        name,
+        mobile,
+        address,
+        position,
+        experience,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    res.json({ message: "Profile updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

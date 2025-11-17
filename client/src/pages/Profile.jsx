@@ -1,5 +1,7 @@
+// Profile.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebaseConfig'
@@ -11,6 +13,23 @@ function Profile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  // Edit modal state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editErrors, setEditErrors] = useState({})
+  const [editSuccess, setEditSuccess] = useState('')
+
+  // Form fields for editing
+  const [form, setForm] = useState({
+    name: '',
+    mobile: '',
+    address: '',
+    position: '',
+    experience: '',
+    cvUrl: '',
+    certificatesUrl: '',
+  })
+
   useEffect(() => {
     const fetchUserData = async () => {
       if (!currentUser) {
@@ -21,7 +40,18 @@ function Profile() {
       try {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
         if (userDoc.exists()) {
-          setUserData(userDoc.data())
+          const data = userDoc.data()
+          setUserData(data)
+          // fill edit form with existing values
+          setForm({
+            name: data.name || '',
+            mobile: data.mobile || '',
+            address: data.address || '',
+            position: data.position || '',
+            experience: data.experience || '',
+            cvUrl: data.cvUrl || '',
+            certificatesUrl: data.certificatesUrl || '',
+          })
         } else {
           setError('User profile not found')
         }
@@ -45,6 +75,109 @@ function Profile() {
     }
   }
 
+  // open edit modal (ensure form is prefilled)
+  const openEdit = () => {
+    setEditErrors({})
+    setEditSuccess('')
+    setForm({
+      name: userData?.name || '',
+      mobile: userData?.mobile || '',
+      address: userData?.address || '',
+      position: userData?.position || '',
+      experience: userData?.experience || '',
+      cvUrl: userData?.cvUrl || '',
+      certificatesUrl: userData?.certificatesUrl || '',
+    })
+    setIsEditing(true)
+  }
+
+  const closeEdit = () => {
+    setIsEditing(false)
+    setEditErrors({})
+    setEditSuccess('')
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
+    if (editErrors[name]) setEditErrors(prev => ({ ...prev, [name]: '' }))
+  }
+
+  const validateEditForm = () => {
+    const errs = {}
+    if (!form.name.trim()) errs.name = 'Name is required'
+    if (form.mobile && !/^\d{10}$/.test(form.mobile.replace(/\D/g, '')))
+      errs.mobile = 'Mobile must be 10 digits'
+    if (!form.address.trim()) errs.address = 'Address is required'
+    if (!form.position.trim()) errs.position = 'Position is required'
+    if (!form.experience.trim()) errs.experience = 'Experience is required'
+    // If urls provided, very basic url check
+    if (form.cvUrl && !/^https?:\/\//i.test(form.cvUrl)) errs.cvUrl = 'CV URL should start with http(s)://'
+    if (form.certificatesUrl && !/^https?:\/\//i.test(form.certificatesUrl)) errs.certificatesUrl = 'Certificate URL should start with http(s)://'
+    return errs
+  }
+
+  // Update profile API call
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setEditSuccess('')
+    const errs = validateEditForm()
+    if (Object.keys(errs).length > 0) {
+      setEditErrors(errs)
+      return
+    }
+
+    if (!currentUser) {
+      setEditErrors({ global: 'You must be logged in to update profile.' })
+      return
+    }
+
+    setEditLoading(true)
+    try {
+      // get firebase id token to authenticate backend
+      const token = await currentUser.getIdToken()
+
+      // Prepare payload - only fields we want to update
+      const payload = {
+        name: form.name.trim(),
+        mobile: form.mobile.trim(),
+        address: form.address.trim(),
+        position: form.position.trim(),
+        experience: form.experience.trim(),
+        cvUrl: form.cvUrl?.trim() || null,
+        certificatesUrl: form.certificatesUrl?.trim() || null,
+      }
+
+      // PUT to your backend update route (you should implement /update-profile in server)
+      // Example: axios.put('/update-profile', payload, { headers: { Authorization: `Bearer ${token}` }})
+      const response = await axios.put('http://localhost:5000/update-profile', payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      // If backend returns updated data, use it; otherwise update locally
+      if (response.data?.profile) {
+        setUserData(response.data.profile)
+      } else {
+        setUserData(prev => ({ ...prev, ...payload }))
+      }
+
+      setEditSuccess('Profile updated successfully.')
+      // close modal after short delay
+      setTimeout(() => {
+        setIsEditing(false)
+        setEditSuccess('')
+      }, 1200)
+    } catch (err) {
+      console.error('Update error:', err)
+      const msg = err.response?.data?.error || 'Failed to update profile'
+      setEditErrors({ global: msg })
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   // If user is not logged in, show login/register options
   if (!currentUser) {
     return (
@@ -58,10 +191,10 @@ function Profile() {
                 </svg>
               </div>
             </div>
-            
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Your Profile</h2>
             <p className="text-gray-600 mb-8">Please login or create an account to view your profile</p>
-            
+
             <div className="space-y-3">
               <Link
                 to="/auth/login"
@@ -69,7 +202,7 @@ function Profile() {
               >
                 Login to Your Account
               </Link>
-              
+
               <Link
                 to="/auth/register"
                 className="block w-full bg-white border-2 border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-50 transition font-medium"
@@ -77,7 +210,7 @@ function Profile() {
                 Create New Account
               </Link>
             </div>
-            
+
             <div className="mt-8 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-500">
                 New to Job Community Portal?{' '}
@@ -128,8 +261,8 @@ function Profile() {
                       userRole === 'recruiter' ? 'bg-green-100 text-green-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {userRole === 'job-seeker' ? '👤 Job Seeker' : 
-                       userRole === 'recruiter' ? '🎯 Recruiter' : 
+                      {userRole === 'job-seeker' ? '👤 Job Seeker' :
+                       userRole === 'recruiter' ? '🎯 Recruiter' :
                        userRole === 'company' ? '🏢 Company' : '👤 User'}
                     </span>
                     {currentUser.emailVerified && (
@@ -140,15 +273,21 @@ function Profile() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition font-medium shadow-md hover:shadow-lg flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={openEdit}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium shadow-md hover:shadow-lg flex items-center gap-2"
+                >
+                  Edit Profile
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition font-medium shadow-md hover:shadow-lg flex items-center gap-2"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -179,7 +318,7 @@ function Profile() {
                   <p className="text-gray-900">{userData?.email || currentUser.email}</p>
                 </div>
               </div>
-              
+
               {userData?.mobile && (
                 <div className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,11 +326,11 @@ function Profile() {
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Mobile</p>
-                    <p className="text-gray-900">{userData.mobile}</p>
+                    <p className="text-gray-900">{userData.mobile || '—'}</p>
                   </div>
                 </div>
               )}
-              
+
               {userData?.address && (
                 <div className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +339,7 @@ function Profile() {
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Address</p>
-                    <p className="text-gray-900">{userData.address}</p>
+                    <p className="text-gray-900">{userData.address || '—'}</p>
                   </div>
                 </div>
               )}
@@ -223,11 +362,11 @@ function Profile() {
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Position</p>
-                    <p className="text-gray-900 font-semibold">{userData.position}</p>
+                    <p className="text-gray-900 font-semibold">{userData.position || '—'}</p>
                   </div>
                 </div>
               )}
-              
+
               {userData?.experience && (
                 <div className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,11 +374,11 @@ function Profile() {
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Experience</p>
-                    <p className="text-gray-900">{userData.experience}</p>
+                    <p className="text-gray-900">{userData.experience || '—'}</p>
                   </div>
                 </div>
               )}
-              
+
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -247,10 +386,10 @@ function Profile() {
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Member Since</p>
                   <p className="text-gray-900">
-                    {userData?.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
+                    {userData?.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
                     }) : 'Recently joined'}
                   </p>
                 </div>
@@ -290,7 +429,7 @@ function Profile() {
                   </svg>
                 </a>
               )}
-              
+
               {userData?.certificatesUrl && (
                 <a
                   href={userData.certificatesUrl}
@@ -316,27 +455,132 @@ function Profile() {
           </div>
         )}
 
-        {/* Edit Profile Button */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Want to update your profile?</h3>
-              <p className="text-sm text-gray-500 mt-1">Edit your personal and professional information</p>
+        {/* Edit Profile Modal */}
+        {isEditing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-4">
+            <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-auto max-h-[90vh]">
+              <div className="p-6 border-b">
+                <h3 className="text-xl font-semibold">Edit Profile</h3>
+                <p className="text-sm text-gray-500 mt-1">Update your personal & professional details</p>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} className="p-6 space-y-4">
+                {editErrors.global && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded">{editErrors.global}</div>
+                )}
+                {editSuccess && (
+                  <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded">{editSuccess}</div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Full name</label>
+                    <input
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.name && <p className="text-sm text-red-500 mt-1">{editErrors.name}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Mobile</label>
+                    <input
+                      name="mobile"
+                      value={form.mobile}
+                      onChange={handleChange}
+                      placeholder="10 digit mobile"
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.mobile && <p className="text-sm text-red-500 mt-1">{editErrors.mobile}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                    <textarea
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                      rows={2}
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.address && <p className="text-sm text-red-500 mt-1">{editErrors.address}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Position</label>
+                    <input
+                      name="position"
+                      value={form.position}
+                      onChange={handleChange}
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.position && <p className="text-sm text-red-500 mt-1">{editErrors.position}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Experience</label>
+                    <input
+                      name="experience"
+                      value={form.experience}
+                      onChange={handleChange}
+                      placeholder="e.g., 3 years / Fresher"
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.experience && <p className="text-sm text-red-500 mt-1">{editErrors.experience}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">CV URL</label>
+                    <input
+                      name="cvUrl"
+                      value={form.cvUrl}
+                      onChange={handleChange}
+                      placeholder="https://..."
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.cvUrl && <p className="text-sm text-red-500 mt-1">{editErrors.cvUrl}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Certificate URL</label>
+                    <input
+                      name="certificatesUrl"
+                      value={form.certificatesUrl}
+                      onChange={handleChange}
+                      placeholder="https://..."
+                      className="mt-1 w-full px-3 py-2 border rounded"
+                    />
+                    {editErrors.certificatesUrl && <p className="text-sm text-red-500 mt-1">{editErrors.certificatesUrl}</p>}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={closeEdit}
+                    className="px-4 py-2 rounded border hover:bg-gray-50"
+                    disabled={editLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? 'Saving...' : 'Save changes'}
+                  </button>
+                </div>
+              </form>
             </div>
-            <button
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium shadow-md hover:shadow-lg flex items-center gap-2"
-              onClick={() => alert('Edit functionality coming soon!')}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit Profile
-            </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
 }
 
 export default Profile
+                

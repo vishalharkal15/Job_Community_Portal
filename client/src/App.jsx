@@ -9,6 +9,7 @@ import BookMeeting from './pages/BookMeeting'
 import Profile from './pages/Profile'
 import Register from './pages/auth/Register'
 import Login from './pages/auth/Login'
+import EditProfile from './pages/EditProfile'
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/book-meeting" element={<BookMeeting />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/edit" element={<EditProfile />} />
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/login" element={<Login />} />
           </Routes>

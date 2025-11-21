@@ -16,9 +16,36 @@ export default function BlogDetails() {
     fetchBlog();
   }, []);
 
+  function timeAgo(date) {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+    const units = [
+        { name: "week", secs: 7 * 24 * 60 * 60 },
+        { name: "day", secs: 24 * 60 * 60 },
+        { name: "hour", secs: 60 * 60 },
+        { name: "minute", secs: 60 },
+        { name: "second", secs: 1 },
+    ];
+
+    for (let unit of units) {
+        const value = Math.floor(seconds / unit.secs);
+        if (value >= 1) {
+        return `${value} ${unit.name}${value > 1 ? "s" : ""} ago`;
+        }
+    }
+
+    return "just now";
+    }
+
   async function fetchBlog() {
     const snap = await getDoc(doc(db, "blogs", id));
-    setBlog({ id: snap.id, ...snap.data() });
+    const data = snap.data();
+
+    setBlog({
+        id: snap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(), // convert Firestore timestamp
+    });
   }
 
   if (!blog) return <p className="p-6">Loading...</p>;
@@ -38,7 +65,7 @@ export default function BlogDetails() {
       <h1 className="text-4xl font-bold">{blog.title}</h1>
 
       <p className="text-gray-600 mt-2 mb-8">
-        By {blog.authorName} • {new Date(blog.createdAt).toLocaleString()}
+        By {blog.authorName} • {timeAgo(blog.createdAt)}
       </p>
 
       <p className="text-lg mb-10 whitespace-pre-wrap">{blog.content}</p>

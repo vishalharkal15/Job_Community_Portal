@@ -1,11 +1,13 @@
-// src/components/Blog/BlogDetails.jsx
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
+
 import BlogActions from "./BlogActions";
 import BlogComments from "./BlogComments";
+
+import { timeAgo } from "../../utils/date";
 
 export default function BlogDetails() {
   const { id } = useParams();
@@ -16,35 +18,14 @@ export default function BlogDetails() {
     fetchBlog();
   }, []);
 
-  function timeAgo(date) {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
-    const units = [
-        { name: "week", secs: 7 * 24 * 60 * 60 },
-        { name: "day", secs: 24 * 60 * 60 },
-        { name: "hour", secs: 60 * 60 },
-        { name: "minute", secs: 60 },
-        { name: "second", secs: 1 },
-    ];
-
-    for (let unit of units) {
-        const value = Math.floor(seconds / unit.secs);
-        if (value >= 1) {
-        return `${value} ${unit.name}${value > 1 ? "s" : ""} ago`;
-        }
-    }
-
-    return "just now";
-    }
-
   async function fetchBlog() {
     const snap = await getDoc(doc(db, "blogs", id));
     const data = snap.data();
 
     setBlog({
-        id: snap.id,
-        ...data,
-        createdAt: data.createdAt?.toDate(), // convert Firestore timestamp
+      id: snap.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || null, // Firestore → JS Date
     });
   }
 

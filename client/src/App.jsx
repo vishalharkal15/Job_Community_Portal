@@ -5,13 +5,15 @@ import Home from './pages/Home'
 import Blog from './components/Blog/Blog'
 import CreateBlog from './components/Blog/CreateBlog'
 import Services from './pages/Services'
-import Jobs from './pages/Jobs'
+import Jobs from './components/Jobs/Jobs'
 import BookMeeting from './pages/BookMeeting'
 import Profile from './pages/Profile'
 import Register from './pages/auth/Register'
 import Login from './pages/auth/Login'
 import BlogList from "./components/Blog/BlogList";
 import BlogDetails from "./components/Blog/BlogDetails";
+import CreateJob from './components/Jobs/CreateJob'
+import JobDetails from './components/Jobs/JobDetails'
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/create-job" element={<CreateJob />} />
+            <Route path="/jobs/:id" element={<JobDetails />} />
             <Route path="/blog" element={<BlogList />} />
             <Route path="/blog/:id" element={<BlogDetails />} />
             <Route path="/create-blog" element={<CreateBlog />} />

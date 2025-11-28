@@ -27,14 +27,14 @@ export default function BlogList() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6 text-gray-900 dark:text-gray-100">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Blogs</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Blogs</h1>
 
         {userRole === "job-seeker" && (
           <Link
             to="/create-blog"
-            className="bg-blue-600 text-white px-4 py-2 rounded shadow"
+            className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             Create Blog
           </Link>
@@ -42,9 +42,9 @@ export default function BlogList() {
       </div>
 
       {blogs.length === 0 ? (
-        <p className="text-gray-500 text-center">No blogs available yet.</p>
+        <p className="text-gray-500 dark:text-gray-400 text-center">No blogs available yet.</p>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {blogs.map((blog) => (
             <BlogCard key={blog.id} blog={blog} />
           ))}

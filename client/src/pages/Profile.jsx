@@ -181,9 +181,9 @@ function Profile() {
   // If user is not logged in, show login/register options
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 text-gray-900 dark:text-gray-100">
         <div className="max-w-md mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
             <div className="mb-6">
               <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center">
                 <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,8 +192,8 @@ function Profile() {
               </div>
             </div>
 
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Your Profile</h2>
-            <p className="text-gray-600 mb-8">Please login or create an account to view your profile</p>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Welcome to Your Profile</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-8">Please login or create an account to view your profile</p>
 
             <div className="space-y-3">
               <Link
@@ -205,7 +205,7 @@ function Profile() {
 
               <Link
                 to="/auth/register"
-                className="block w-full bg-white border-2 border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-50 transition font-medium"
+                className="block w-full bg-white dark:bg-gray-900 border-2 border-blue-600 text-blue-600 dark:text-blue-300 py-3 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition font-medium"
               >
                 Create New Account
               </Link>
@@ -228,20 +228,20 @@ function Profile() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 flex items-center justify-center text-gray-900 dark:text-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading your profile...</p>
+          <p className="text-gray-600 dark:text-gray-300 font-medium">Loading your profile...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 text-gray-900 dark:text-gray-100">
       <div className="max-w-4xl mx-auto">
         {/* Header Card */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 h-32"></div>
           <div className="px-8 pb-8">
             <div className="flex items-end justify-between -mt-16 mb-6">
@@ -252,7 +252,7 @@ function Profile() {
                   </svg>
                 </div>
                 <div className="mb-2">
-                  <h1 className="text-3xl font-bold text-gray-900">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                     {userData?.name || currentUser.displayName || 'User'}
                   </h1>
                   <div className="flex items-center gap-2 mt-1">
@@ -293,7 +293,7 @@ function Profile() {
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
@@ -301,8 +301,8 @@ function Profile() {
         {/* Profile Information Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           {/* Contact Information Card */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -314,8 +314,8 @@ function Profile() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <div>
-                  <p className="text-sm text-gray-500 font-medium">Email</p>
-                  <p className="text-gray-900">{userData?.email || currentUser.email}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">Email</p>
+                  <p className="text-gray-900 dark:text-gray-100">{userData?.email || currentUser.email}</p>
                 </div>
               </div>
 

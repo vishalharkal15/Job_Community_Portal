@@ -36,15 +36,15 @@ export default function Jobs() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Available Jobs</h1>
+    <div className="max-w-6xl mx-auto p-6 text-gray-900 dark:text-gray-100">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Available Jobs</h1>
 
         {/* Show add job button only for job-seeker */}
         {currentUser && userRole === "job-seeker" && (
           <button
             onClick={handleAddJob}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
           >
             + Add Job
           </button>
@@ -52,13 +52,13 @@ export default function Jobs() {
       </div>
 
       {loading ? (
-        <p>Loading jobs...</p>
+        <p className="text-gray-600 dark:text-gray-300">Loading jobs...</p>
       ) : jobs.length === 0 ? (
-        <div className="bg-gray-100 p-6 rounded text-center text-gray-600">
+        <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded text-center text-gray-600 dark:text-gray-300">
           No jobs available at the moment.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobs.map((job) => (
             <JobCard key={job.id} job={job} refresh={loadJobs} />
           ))}

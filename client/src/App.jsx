@@ -14,6 +14,7 @@ import BlogList from "./components/Blog/BlogList";
 import BlogDetails from "./components/Blog/BlogDetails";
 import CreateJob from './components/Jobs/CreateJob'
 import JobDetails from './components/Jobs/JobDetails'
+import AdminPage from './admin/AdminPage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/login" element={<Login />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </main>
         <Footer />

@@ -44,6 +44,44 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+// 🔐 Extract token & verify user from Firebase
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split("Bearer ")[1];
+  if (!token)
+    return res.status(401).json({ error: "Unauthorized - Missing token" });
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.uid = decoded.uid;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
+// 🔐 Load user role from Firestore
+const loadUserRole = async (req, res, next) => {
+  try {
+    const userRef = await db.collection("users").doc(req.uid).get();
+    if (!userRef.exists)
+      return res.status(404).json({ error: "User not found" });
+
+    req.user = userRef.data(); // contains role
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to load user profile" });
+  }
+};
+
+// 🔐 Only Super-Admin Access
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== "super-admin")
+    return res.status(403).json({ error: "Access denied - Super Admin only" });
+
+  next();
+};
+
+
 app.get("/", (req, res) => {
   res.send("Server running successfully!");
 });
@@ -108,6 +146,19 @@ app.post("/login", async(req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(401).json({ error: "Invalid or expired token "});
+  }
+});
+
+app.get("/user/profile", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    res.json({
+      message: "Profile loaded successfully",
+      profile: req.user,
+      uid: req.uid,
+    });
+  } catch (err) {
+    console.error("Profile load error:", err);
+    res.status(500).json({ error: "Failed to load user profile" });
   }
 });
 
@@ -255,6 +306,76 @@ app.post("/blogs", async (req, res) => {
     res.status(500).json({ error: "Failed to create blog" });
   }
 });
+
+// ⭐ ADMIN — Fetch all users
+app.get("/admin/users", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const snapshot = await db.collection("users").get();
+
+    const users = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ users });
+  } catch (err) {
+    console.error("Admin Users Error:", err);
+    return res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// ⭐ ADMIN — Fetch all jobs
+app.get("/admin/jobs", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const snapshot = await db.collection("jobs").get();
+
+    const jobs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ jobs });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch jobs" });
+  }
+});
+
+// ⭐ ADMIN — Fetch all blogs
+app.get("/admin/blogs", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const snapshot = await db.collection("blogs").get();
+
+    const blogs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ blogs });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch blogs" });
+  }
+});
+
+// ⭐ ADMIN — Update Role
+app.put("/admin/update-role", verifyToken, loadUserRole, requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId, newRole } = req.body;
+
+    if (!userId || !newRole)
+      return res.status(400).json({ error: "Missing userId or newRole" });
+
+    await db.collection("users").doc(userId).update({
+      role: newRole,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({ message: "Role updated" });
+  } catch (err) {
+    console.error("Role Update Error:", err);
+    return res.status(500).json({ error: "Role update failed" });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

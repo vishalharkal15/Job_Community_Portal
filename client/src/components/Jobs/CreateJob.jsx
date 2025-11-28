@@ -19,7 +19,7 @@ export default function CreateJob() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (userRole !== "job-seeker")
+  if (userRole !== "recruiter")
     return (
       <p className="p-6 text-red-600">
         You do not have permissions to create a job.

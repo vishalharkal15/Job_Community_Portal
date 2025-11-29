@@ -67,16 +67,20 @@ function BookMeeting() {
     fetchProfile();
   }, [currentUser]);
 
-  // Submit meeting-request
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSuccess(false);
 
     try {
+      const token = await currentUser.getIdToken(); // << GET TOKEN
+
       const response = await fetch("http://localhost:5000/meeting-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`  // << SEND TOKEN
+        },
         body: JSON.stringify(formData)
       });
 
@@ -85,12 +89,9 @@ function BookMeeting() {
       if (data.success) {
         setSuccess(true);
 
-        // Reset only non-autofill fields
+        // Reset only purpose & message
         setFormData(prev => ({
           ...prev,
-          phone: prev.phone,
-          name: prev.name,
-          email: prev.email,
           purpose: "",
           message: ""
         }));

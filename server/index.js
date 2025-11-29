@@ -81,6 +81,7 @@ const requireSuperAdmin = (req, res, next) => {
 };
 
 const requireAdmin = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
   if (req.user.role !== "admin" && req.user.role !== "super-admin") {
     return res.status(403).json({ error: "Access denied - Admin only" });
   }
@@ -416,6 +417,36 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
       html: htmlForUser,
     });
 
+    try {
+      const adminDoc = await db.collection("users").doc(req.uid).get();
+      const adminData = adminDoc.exists ? adminDoc.data() : null;
+      const adminEmail = adminData?.email;
+
+      if (adminEmail) {
+        const htmlForAdmin = `
+          <h3>You approved a meeting request</h3>
+          <p><b>User:</b> ${reqData.name} (${reqData.email})</p>
+          <p><b>Purpose:</b> ${reqData.purpose}</p>
+          <p><b>Date:</b> ${date}</p>
+          <p><b>Time:</b> ${time}</p>
+          <p><b>Duration:</b> ${durationMinutes} minutes</p>
+          <p><b>Zoom Link:</b> <a href="${joinLink}">${joinLink}</a></p>
+          <p>Meeting ID: ${meetingZoomId}</p>
+        `;
+
+        await transporter.sendMail({
+          from: process.env.EMAIL,
+          to: adminEmail,
+          subject: "You approved a meeting — Zoom link & details",
+          html: htmlForAdmin,
+        });
+      } else {
+        console.warn("Approving admin has no email on file (uid:", req.uid, ")");
+      }
+    } catch (mailErr) {
+      console.error("Failed to email approving admin:", mailErr);
+      // don't fail the whole request if admin email fails — we already emailed the user
+    }
     return res.json({ success: true, zoomLink: joinLink, meetingId: meetingZoomId });
   } catch (err) {
     console.error("Approve meeting error:", err.response?.data || err);

@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 function BookMeeting() {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  // State to prevent page from rendering too early
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Main form data
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    date: '',
-    time: '',
-    purpose: '',
-    message: ''
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [success, setSuccess] = useState(false)
+    name: "",
+    email: "",
+    phone: "",
+    purpose: "",
+    message: ""
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const purposes = [
     'Job Interview',
@@ -20,89 +28,145 @@ function BookMeeting() {
     'Consultation',
     'Technical Discussion',
     'Other'
-  ]
+  ];
 
+  // Redirect if NOT authenticated
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/auth/login");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [currentUser, navigate]);
+
+  // Fetch Firestore user profile → Autofill Name, Email, Mobile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!currentUser) return;
+
+      const token = await currentUser.getIdToken();
+
+      const res = await fetch("http://localhost:5000/user/profile", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (data.profile) {
+        setFormData(prev => ({
+          ...prev,
+          name: data.profile.name || currentUser.displayName || "",
+          email: data.profile.email || currentUser.email || "",
+          phone: data.profile.mobile || ""
+        }));
+      }
+    };
+
+    fetchProfile();
+  }, [currentUser]);
+
+  // Submit meeting-request
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setSuccess(false)
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSuccess(false);
 
     try {
-      const response = await fetch("http://localhost:5000/create-meeting", {
+      const response = await fetch("http://localhost:5000/meeting-request", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (data.success) {
-        console.log("Zoom meeting created:", data)
-        setSuccess(true)
-      } else {
-        alert("Failed to create meeting")
-      }
+        setSuccess(true);
 
+        // Reset only non-autofill fields
+        setFormData(prev => ({
+          ...prev,
+          phone: prev.phone,
+          name: prev.name,
+          email: prev.email,
+          purpose: "",
+          message: ""
+        }));
+      } else {
+        alert("Failed to submit request");
+      }
     } catch (error) {
-      console.error("Error calling API:", error)
-      alert("Server error")
+      console.error("Error:", error);
+      alert("Server error");
     }
 
-    setIsSubmitting(false)
-  }
+    setIsSubmitting(false);
+  };
 
+  // Change handler for inputs
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Show while checking login
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Checking authentication...
+      </div>
+    );
   }
 
+  // Main UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 text-gray-900 dark:text-gray-100">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
+        {/* Header */}
         <div className="text-center mb-12">
           <div className="flex justify-center mb-4">
             <div className="bg-blue-600 text-white p-4 rounded-full">
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 
+                     002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 
+                     002 2z" />
               </svg>
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Book a Meeting</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-2">Schedule a Zoom meeting with our team</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">We'll send you a Zoom link via email</p>
+
+          <h1 className="text-4xl font-bold dark:text-white mb-4">Book a Meeting</h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-2">
+            Request a Zoom meeting with our team
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Admin will approve and send date, time & Zoom link
+          </p>
         </div>
 
+        {/* Form Container */}
         <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Zoom Meeting Details
-            </h2>
+            <h2 className="text-2xl font-bold text-white">Meeting Request Form</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
+
             {success && (
-              <div className="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-4 mb-6 animate-pulse">
-                <div className="flex items-center">
-                  <svg className="w-6 h-6 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-green-800 dark:text-green-200 font-semibold">Meeting Scheduled Successfully!</h3>
-                    <p className="text-green-700 dark:text-green-300 text-sm">Check your email for the Zoom meeting link.</p>
-                  </div>
-                </div>
+              <div className="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-4">
+                <h3 className="text-green-800 dark:text-green-200 font-semibold">
+                  Request Submitted Successfully!
+                </h3>
+                <p className="text-green-700 dark:text-green-300 text-sm">
+                  Check your email for confirmation.
+                </p>
               </div>
             )}
 
+            {/* Inputs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <input
                 type="text"
@@ -110,7 +174,7 @@ function BookMeeting() {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600"
                 placeholder="Full Name"
               />
 
@@ -120,7 +184,7 @@ function BookMeeting() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600"
                 placeholder="Email Address"
               />
 
@@ -130,7 +194,7 @@ function BookMeeting() {
                 required
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600"
                 placeholder="Phone Number"
               />
 
@@ -139,32 +203,11 @@ function BookMeeting() {
                 required
                 value={formData.purpose}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600"
               >
                 <option value="">Select purpose</option>
-                {purposes.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {purposes.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-
-              <input
-                type="date"
-                name="date"
-                required
-                value={formData.date}
-                onChange={handleChange}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
-              />
-
-              <input
-                type="time"
-                name="time"
-                required
-                value={formData.time}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
-              />
             </div>
 
             <textarea
@@ -172,8 +215,8 @@ function BookMeeting() {
               rows="4"
               value={formData.message}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
-              placeholder="Additional message"
+              className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600"
+              placeholder="Additional message (optional)"
             />
 
             <button
@@ -185,39 +228,15 @@ function BookMeeting() {
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105'
               }`}
             >
-              {isSubmitting ? "Scheduling..." : "Schedule Zoom Meeting"}
+              {isSubmitting ? "Submitting..." : "Submit Meeting Request"}
             </button>
+
           </form>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md text-center">
-            <div className="bg-green-100 dark:bg-green-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-              ✓
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Instant Confirmation</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Get meeting confirmation immediately</p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md text-center">
-            <div className="bg-blue-100 dark:bg-blue-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-              🔒
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Secure & Private</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">End-to-end encrypted meetings</p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-md text-center">
-            <div className="bg-purple-100 dark:bg-purple-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-              ⏰
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Flexible Scheduling</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Choose your convenient time</p>
-          </div>
-        </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default BookMeeting
+export default BookMeeting;

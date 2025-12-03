@@ -162,22 +162,6 @@ app.post("/register", async (req, res) => {
       { merge: true }
     );
 
-    // Notify Super Admins about new registration
-    const admins = await db
-      .collection("users")
-      .where("role", "==", "super-admin")
-      .get();
-
-    admins.forEach(async (doc) => {
-      await createNotification(
-        doc.id,
-        "New Registration",
-        `A new user registered: ${name}`,
-        "user-registered",
-        uid
-      );
-    });
-
     // Send response AFTER all success
     res.json({
       message: "User registered & saved in Firestore successfully",
@@ -558,7 +542,7 @@ app.put("/admin/meetings/:id/decline", verifyToken, loadUserRole, requireAdmin, 
     // Notify declining admin
     await createNotification(
       req.uid,
-      `You declined meeting request from ${data.name}.`,
+      `Meeting request from ${data.name} was declined.`,
       "meeting-declined-admin",
       meetingId
     );
@@ -692,21 +676,6 @@ app.post("/blogs", async (req, res) => {
       docRef.id
     );
 
-    // 🔥 FIX — fetch admins properly
-    const adminSnapshot = await db.collection("users")
-      .where("role", "in", ["admin", "super-admin"])
-      .get();
-
-    adminSnapshot.docs.forEach(d => {
-      createNotification(
-        d.id,
-        "New Blog Posted",
-        `${user.name} posted a blog titled '${title}'.`,
-        "blog-posted",
-        docRef.id
-      );
-    });
-
     return res.json({
       message: "Blog created successfully",
       id: docRef.id,
@@ -751,6 +720,91 @@ app.get("/admin/jobs", verifyToken, loadUserRole, async (req, res) => {
   }
 });
 
+app.put("/jobs/:id/edit", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const uid = req.uid;
+    const { title, description, company, location, salary, skillsRequired } = req.body;
+
+    // Fetch job
+    const jobRef = db.collection("jobs").doc(jobId);
+    const jobSnap = await jobRef.get();
+
+    if (!jobSnap.exists)
+      return res.status(404).json({ error: "Job not found" });
+
+    const job = jobSnap.data();
+
+    // Block user if not owner
+    if (job.postedBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
+      return res.status(403).json({ error: "Access denied — You are not authorized to edit this job" });
+    }
+
+    await jobRef.update({
+      title,
+      description,
+      company,
+      location,
+      salary: salary || job.salary,
+      skillsRequired: skillsRequired || job.skillsRequired,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await createNotification(
+      uid,
+      "Job Updated",
+      `Job '${title}' was updated.`,
+      "job-updated",
+      jobId
+    );
+
+    return res.json({ message: "Job updated successfully" });
+
+  } catch (err) {
+    console.error("Job update error:", err);
+    return res.status(500).json({ error: "Failed to update job" });
+  }
+});
+
+app.delete("/jobs/:id", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const uid = req.uid;
+
+    // Fetch job
+    const jobRef = db.collection("jobs").doc(jobId);
+    const jobSnap = await jobRef.get();
+
+    if (!jobSnap.exists)
+      return res.status(404).json({ error: "Job not found" });
+
+    const job = jobSnap.data();
+
+    // Check ownership or admin override
+    if (job.postedBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
+      return res.status(403).json({ error: "Access denied — you cannot delete this job" });
+    }
+
+    // Delete job
+    await jobRef.delete();
+
+    // Notification to owner
+    await createNotification(
+      uid,
+      "Job Deleted",
+      `Your job '${job.title}' has been deleted.`,
+      "job-deleted",
+      jobId
+    );
+
+    return res.json({ message: "Job deleted successfully" });
+
+  } catch (err) {
+    console.error("Job deletion error:", err);
+    return res.status(500).json({ error: "Failed to delete job" });
+  }
+});
+
 // ⭐ ADMIN — Fetch all blogs
 app.get("/admin/blogs", verifyToken, loadUserRole, async (req, res) => {
   try {
@@ -772,15 +826,27 @@ app.put("/admin/update-role", verifyToken, loadUserRole, requireSuperAdmin, asyn
   try {
     const { userId, newRole } = req.body;
 
-    if (!userId || !newRole)
+    if (!userId || !newRole) {
       return res.status(400).json({ error: "Missing userId or newRole" });
+    }
 
+    // 1️⃣ Fetch target user's document
+    const userSnap = await db.collection("users").doc(userId).get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "Target user not found" });
+    }
+
+    const targetUser = userSnap.data();
+    const username = targetUser.name || "User";
+
+    // 2️⃣ Update user's role
     await db.collection("users").doc(userId).update({
       role: newRole,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notify affected user
+    // 3️⃣ Notify affected user
     await createNotification(
       userId,
       "Role Updated",
@@ -789,11 +855,11 @@ app.put("/admin/update-role", verifyToken, loadUserRole, requireSuperAdmin, asyn
       userId
     );
 
-    // 🔥 FIX — correct parameter mapping
+    // 4️⃣ Notify the super-admin who did the change (with username)
     await createNotification(
       req.uid,
       "Role Update Executed",
-      `You updated user ${userId} to role '${newRole}'.`,
+      `${username}'s role has been changed to '${newRole}'.`,
       "role-updated-admin",
       userId
     );

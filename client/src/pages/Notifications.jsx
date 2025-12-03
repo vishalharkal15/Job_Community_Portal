@@ -66,17 +66,17 @@ export default function Notifications() {
   };
 
   if (!currentUser)
-    return <div className="p-6 text-center">Please login first.</div>;
+    return <div className="p-6 text-center text-gray-900 dark:text-gray-100">Please login first.</div>;
 
   if (loading)
-    return <div className="p-6 text-center">Loading...</div>;
+    return <div className="p-6 text-center text-gray-900 dark:text-gray-100">Loading...</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Notifications</h1>
+      <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Notifications</h1>
 
       {notifications.length === 0 && (
-        <p className="text-gray-500">No notifications yet.</p>
+        <p className="text-gray-500 dark:text-gray-400">No notifications yet.</p>
       )}
 
       <div className="space-y-4">
@@ -84,14 +84,16 @@ export default function Notifications() {
           <div
             key={n.id}
             className={`p-4 rounded shadow ${
-              n.status === "unread" ? "bg-blue-100" : "bg-gray-200"
+              n.status === "unread" 
+                ? "bg-blue-100 dark:bg-blue-900/30" 
+                : "bg-gray-200 dark:bg-gray-800"
             }`}
           >
-            <p className="text-lg font-semibold">{n.title}</p>
-            <p className="text-gray-700">{n.message}</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
+            <p className="text-gray-700 dark:text-gray-300">{n.message}</p>
             {n.status === "unread" && (
               <button
-                className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded"
+                className="mt-2 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded transition"
                 onClick={() => markAsRead(n.id)}
               >
                 Mark as Read

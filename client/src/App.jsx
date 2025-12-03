@@ -15,6 +15,7 @@ import BlogDetails from "./components/Blog/BlogDetails";
 import CreateJob from './components/Jobs/CreateJob'
 import JobDetails from './components/Jobs/JobDetails'
 import AdminPage from './admin/AdminPage';
+import Notifications from './pages/Notifications'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/book-meeting" element={<BookMeeting />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/notification" element={<Notifications />} />
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/admin" element={<AdminPage />} />

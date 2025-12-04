@@ -246,15 +246,10 @@ function Profile() {
           <div className="px-6 pb-8">
             <div className="-mt-16 mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="flex items-end gap-4">
-                <div className="flex flex-col items-center md:items-start">
-                  <div className="w-32 h-32 bg-white dark:bg-gray-700 rounded-full ring-4 ring-white dark:ring-gray-800 shadow-lg flex items-center justify-center">
-                    <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-300">
-                    {userData?.username ? `@${userData.username}` : (currentUser?.email ? `@${currentUser.email.split('@')[0]}` : '')}
-                  </p>
+                <div className="w-32 h-32 bg-white dark:bg-gray-700 rounded-full ring-4 ring-white dark:ring-gray-800 shadow-lg flex items-center justify-center">
+                  <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
                 </div>
 
                 <div className="mb-2">

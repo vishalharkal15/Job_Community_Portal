@@ -16,6 +16,9 @@ export default function AdminPage() {
   const [meetings, setMeetings] = useState([]);
 
   const [error, setError] = useState("");
+  const [meetingFilter, setMeetingFilter] = useState("all"); // all, pending, approved, declined
+  const [userRoleFilter, setUserRoleFilter] = useState("all"); // all, or specific role
+  const [jobTypeFilter, setJobTypeFilter] = useState("all"); // all, full-time, part-time, etc.
 
   const ROLES = ["super-admin", "admin", "job-seeker", "recruiter", "company"];
 
@@ -313,12 +316,44 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Users Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-600" />
-              Users ({totalUsers})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Users className="w-6 h-6 text-blue-600" />
+                Users ({userRoleFilter === 'all' ? totalUsers : users.filter(u => u.role === userRoleFilter).length})
+              </h2>
+              
+              {/* Role Filter Toggle */}
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setUserRoleFilter('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    userRoleFilter === 'all'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  All
+                </button>
+                {ROLES.map(role => (
+                  <button
+                    key={role}
+                    onClick={() => setUserRoleFilter(role)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                      userRoleFilter === role
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
             <div className="space-y-3 max-h-96 overflow-auto">
-              {users.map(u => (
+              {users
+                .filter(u => userRoleFilter === 'all' || u.role === userRoleFilter)
+                .map(u => (
                 <div
                   key={u.id}
                   className="border border-gray-200 dark:border-gray-700 p-3 rounded-lg flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 transition"
@@ -348,12 +383,61 @@ export default function AdminPage() {
 
           {/* Jobs Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Briefcase className="w-6 h-6 text-green-600" />
-              Jobs ({totalJobs})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Briefcase className="w-6 h-6 text-green-600" />
+                Jobs ({jobTypeFilter === 'all' ? totalJobs : jobs.filter(j => (j.type || 'Full-time') === jobTypeFilter).length})
+              </h2>
+              
+              {/* Job Type Filter Toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setJobTypeFilter('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    jobTypeFilter === 'all'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setJobTypeFilter('Full-time')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    jobTypeFilter === 'Full-time'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Full-time
+                </button>
+                <button
+                  onClick={() => setJobTypeFilter('Part-time')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    jobTypeFilter === 'Part-time'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Part-time
+                </button>
+                <button
+                  onClick={() => setJobTypeFilter('Contract')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    jobTypeFilter === 'Contract'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Contract
+                </button>
+              </div>
+            </div>
+            
             <div className="space-y-3 max-h-96 overflow-auto">
-              {jobs.map((job) => (
+              {jobs
+                .filter(j => jobTypeFilter === 'all' || (j.type || 'Full-time') === jobTypeFilter)
+                .map((job) => (
                 <div key={job.id} className="border border-gray-200 dark:border-gray-700 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                   <p className="font-medium text-gray-900 dark:text-gray-100">{job.title}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{job.company}</p>
@@ -393,12 +477,29 @@ export default function AdminPage() {
 
           {/* Meeting Requests Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-orange-600" />
-              Meeting Requests ({totalMeetings})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-orange-600" />
+                Meeting Requests ({meetingFilter === 'all' ? totalMeetings : meetings.filter(m => m.status === meetingFilter).length})
+              </h2>
+              
+              {/* Filter Dropdown */}
+              <select
+                value={meetingFilter}
+                onChange={(e) => setMeetingFilter(e.target.value)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
+            
             <div className="space-y-3 max-h-96 overflow-auto">
-              {meetings.map((m) => (
+              {meetings
+                .filter(m => meetingFilter === 'all' || m.status === meetingFilter)
+                .map((m) => (
                 <div
                   key={m.id}
                   className="border border-gray-200 dark:border-gray-700 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"

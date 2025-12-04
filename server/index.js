@@ -5,6 +5,7 @@ import admin from "firebase-admin";
 import fs from "fs";
 import axios from "axios";
 import nodemailer from "nodemailer";
+import cron from "node-cron";
 
 dotenv.config();
 
@@ -118,6 +119,70 @@ async function createNotification(userId, title, message, type, metaRef = null) 
   });
 }
 
+function scheduleMeetingReminder(meetingId, reqData, approvedBy, meetingStartJs, zoomLink) {
+  const now = new Date();
+  const oneHourBefore = new Date(meetingStartJs.getTime() - 60 * 60 * 1000);
+
+  let runAt = oneHourBefore;
+
+  // If less than 1 hour left already, run as soon as possible (but still show minutes)
+  if (oneHourBefore < now) {
+    runAt = now; // or new Date(now.getTime() + 1000) to delay 1s
+  }
+
+  const delay = runAt.getTime() - now.getTime();
+
+  // setTimeout max is about 24.8 days - this is safe for typical meetings
+  if (delay <= 0) {
+    // Already passed, skip or send immediately
+    return;
+  }
+
+  setTimeout(async () => {
+    try {
+      const now2 = new Date();
+      const diffMs = meetingStartJs - now2;
+      const diffMinutes = Math.round(diffMs / 60000);
+
+      let userMsg;
+      let adminMsg;
+
+      if (diffMinutes >= 60) {
+        userMsg = `Reminder: Your meeting "${reqData.purpose}" starts in 1 hour.\nJoin: ${zoomLink}`;
+        adminMsg = `Reminder: Your meeting with ${reqData.name} about "${reqData.purpose}" starts in 1 hour.\nJoin: ${zoomLink}`;
+      } else {
+        const mins = Math.max(diffMinutes, 1);
+        userMsg = `Reminder: Your meeting "${reqData.purpose}" starts in ${mins} minutes.\nJoin: ${zoomLink}`;
+        adminMsg = `Reminder: Your meeting with ${reqData.name} about "${reqData.purpose}" starts in ${mins} minutes.\nJoin: ${zoomLink}`;
+      }
+
+      // User reminder
+      await createNotification(
+        reqData.createdBy,
+        "Meeting Reminder",
+        userMsg,
+        "meeting-reminder",
+        meetingId
+      );
+
+      // Admin reminder
+      await createNotification(
+        approvedBy,
+        "Meeting Reminder",
+        adminMsg,
+        "meeting-reminder-admin",
+        meetingId
+      );
+
+      // Optional: mark reminderSent in Firestore
+      await db.collection("meeting_requests").doc(meetingId).update({
+        reminderSent: true,
+      });
+    } catch (err) {
+      console.error("Error sending scheduled reminder:", err);
+    }
+  }, delay);
+}
 
 app.get("/", (req, res) => {
   res.send("Server running successfully!");
@@ -421,7 +486,7 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
     // Create Zoom meeting
     const token = await generateZoomToken();
 
-    const start_time = `${date}T${time}:00`; // assume local ISO-like 'YYYY-MM-DDTHH:mm:00'
+    const start_time = `${date}T${time}:00`; // 'YYYY-MM-DDTHH:mm:00'
     const meetingPayload = {
       topic: `Meeting: ${reqData.purpose} — ${reqData.name}`,
       type: 2,
@@ -443,6 +508,9 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
     const joinLink = zoomRes.data.join_url;
     const meetingZoomId = zoomRes.data.id;
 
+    // Build JS Date for meeting start (Asia/Kolkata)
+    const meetingStartJs = new Date(`${date}T${time}:00+05:30`);
+
     // Update Firestore
     await reqDocRef.update({
       status: "approved",
@@ -453,8 +521,10 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
       durationMinutes,
       zoomLink: joinLink,
       zoomId: meetingZoomId,
+      meetingStartAt: admin.firestore.Timestamp.fromDate(meetingStartJs),
+      reminderSent: false,            // <--- for later reminder
     });
-
+    
     // Notify requester via email
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -473,25 +543,32 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
     `;
 
     await transporter.sendMail({
-          from: process.env.EMAIL,
-          to: reqData.email,
-          subject: "Your meeting is scheduled",
-          html: htmlForUser,
-        });
-        await createNotification(
+      from: process.env.EMAIL,
+      to: reqData.email,
+      subject: "Your meeting is scheduled",
+      html: htmlForUser,
+    });
+
+    // Notification for requester (immediate)
+    await createNotification(
       reqData.createdBy,
-      `Your meeting request was approved. Zoom link sent!`,
+      "Meeting Approved",
+      `Your meeting request for "${reqData.purpose}" was approved. Zoom link sent.`,
       "meeting-approved",
       meetingId
     );
 
-    // Notify approving admin
+    // Notification for approving admin (immediate)
     await createNotification(
       req.uid,
-      `You approved meeting with ${reqData.name}. Link sent.`,
+      "Meeting Approved",
+      `You approved meeting with ${reqData.name}. Zoom link sent.`,
       "meeting-approved-admin",
       meetingId
     );
+
+    scheduleMeetingReminder(meetingId, reqData, req.uid, meetingStartJs, joinLink);
+
     return res.json({ success: true, zoomLink: joinLink, meetingId: meetingZoomId });
   } catch (err) {
     console.error("Approve meeting error:", err.response?.data || err);

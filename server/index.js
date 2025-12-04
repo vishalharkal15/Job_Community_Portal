@@ -299,6 +299,7 @@ app.put("/update-profile", async (req, res) => {
         address,
         position,
         experience,
+        companyName: companyName ?? undefined,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }

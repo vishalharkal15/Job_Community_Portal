@@ -107,13 +107,14 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-async function createNotification(userId, title, message, type, metaRef = null) {
+async function createNotification(userId, title, message, type, metaRef = null, redirectUrl = null) {
   return await db.collection("notifications").add({
     userId,
     title,
     message,
     type,
     metaRef,
+    redirectUrl,
     status: "unread",  
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -442,7 +443,8 @@ app.post("/meeting-request", verifyToken, loadUserRole, async (req, res) => {
         "New Meeting Request",
         `Meeting request from ${name} (${purpose})`,
         "meeting-request-received",
-        docRef.id
+        docRef.id,
+        "/admin/users",
       );
     });
     return res.json({ success: true, id: docRef.id });
@@ -555,7 +557,8 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
       "Meeting Approved",
       `Your meeting request for "${reqData.purpose}" was approved. Zoom link sent.`,
       "meeting-approved",
-      meetingId
+      meetingId,
+      joinLink
     );
 
     // Notification for approving admin (immediate)
@@ -564,7 +567,8 @@ app.put("/admin/meetings/:id/approve", verifyToken, loadUserRole, requireAdmin, 
       "Meeting Approved",
       `You approved meeting with ${reqData.name}. Zoom link sent.`,
       "meeting-approved-admin",
-      meetingId
+      meetingId,
+      "admin/meetings"
     );
 
     scheduleMeetingReminder(meetingId, reqData, req.uid, meetingStartJs, joinLink);
@@ -929,7 +933,8 @@ app.put("/admin/update-role", verifyToken, loadUserRole, requireSuperAdmin, asyn
       "Role Updated",
       `Your role has been updated to '${newRole}'.`,
       "role-updated",
-      userId
+      userId,
+      "/profile"
     );
 
     // 4️⃣ Notify the super-admin who did the change (with username)
@@ -938,7 +943,8 @@ app.put("/admin/update-role", verifyToken, loadUserRole, requireSuperAdmin, asyn
       "Role Update Executed",
       `${username}'s role has been changed to '${newRole}'.`,
       "role-updated-admin",
-      userId
+      userId,
+      "/admin/users"
     );
 
     return res.json({ message: "Role updated" });

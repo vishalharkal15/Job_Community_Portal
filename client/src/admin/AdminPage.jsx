@@ -389,49 +389,17 @@ export default function AdminPage() {
                 Jobs ({jobTypeFilter === 'all' ? totalJobs : jobs.filter(j => (j.type || 'Full-time') === jobTypeFilter).length})
               </h2>
               
-              {/* Job Type Filter Toggle */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setJobTypeFilter('all')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    jobTypeFilter === 'all'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setJobTypeFilter('Full-time')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    jobTypeFilter === 'Full-time'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Full-time
-                </button>
-                <button
-                  onClick={() => setJobTypeFilter('Part-time')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    jobTypeFilter === 'Part-time'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Part-time
-                </button>
-                <button
-                  onClick={() => setJobTypeFilter('Contract')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    jobTypeFilter === 'Contract'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Contract
-                </button>
-              </div>
+              {/* Job Type Filter Dropdown */}
+              <select
+                value={jobTypeFilter}
+                onChange={(e) => setJobTypeFilter(e.target.value)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+                <option value="all">All Types</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Contract">Contract</option>
+              </select>
             </div>
             
             <div className="space-y-3 max-h-96 overflow-auto">

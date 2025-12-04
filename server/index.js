@@ -107,6 +107,13 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const requireCompanyOwner = (req, res, next) => {
+  if (req.user.role !== "company") {
+    return res.status(403).json({ error: "Access denied — Company owners only" });
+  }
+  next();
+};
+
 async function createNotification(userId, title, message, type, metaRef = null, redirectUrl = null) {
   return await db.collection("notifications").add({
     userId,
@@ -126,16 +133,13 @@ function scheduleMeetingReminder(meetingId, reqData, approvedBy, meetingStartJs,
 
   let runAt = oneHourBefore;
 
-  // If less than 1 hour left already, run as soon as possible (but still show minutes)
   if (oneHourBefore < now) {
-    runAt = now; // or new Date(now.getTime() + 1000) to delay 1s
+    runAt = now;
   }
 
   const delay = runAt.getTime() - now.getTime();
 
-  // setTimeout max is about 24.8 days - this is safe for typical meetings
   if (delay <= 0) {
-    // Already passed, skip or send immediately
     return;
   }
 
@@ -199,7 +203,7 @@ app.post("/register", async (req, res) => {
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
-    const {
+    let {
       name,
       email,
       mobile,
@@ -212,28 +216,87 @@ app.post("/register", async (req, res) => {
       certificatesUrl
     } = req.body;
 
-    // Save user profile
-    await db.collection("users").doc(uid).set(
-      {
-        name,
-        email,
-        mobile,
-        address,
-        role,
-        companyName: companyName || null,
-        position,
-        experience,
-        cvUrl: cvUrl || null,
-        certificatesUrl: certificatesUrl || null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    if (!experience || typeof experience !== "object" || experience.value == null || experience.unit == null) {
+      return res.status(400).json({ error: "Invalid experience format" });
+    }
+
+    companyName = companyName ? companyName.trim() : null;
+
+    let assignedRole = role;
+
+    let companyId = null;
+
+    if (companyName) {
+      // 1) Check if company exists
+      const companySnap = await db
+        .collection("companies")
+        .where("name", "==", companyName)
+        .limit(1)
+        .get();
+
+      if (!companySnap.empty) {
+        // company exists → assign employee role
+        const existingCompany = companySnap.docs[0];
+        companyId = existingCompany.id;
+
+        if (role === "company") {
+          // ❌ prevent someone claiming founder of existing company
+          assignedRole = "employee";
+        }
+      } else {
+        // company does NOT exist → create new company doc
+        const newCompanyRef = await db.collection("companies").add({
+          name: companyName,
+          logoUrl: null,
+          ownerId: uid,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        companyId = newCompanyRef.id;
+
+        // user automatically becomes founder
+        assignedRole = "company-founder";
+      }
+    }
+
+    const userData = {
+      name,
+      email,
+      mobile,
+      address,
+      role: assignedRole,
+      companyName,
+      companyId: companyId || null,
+      position,
+      experience, // { value, unit }
+      cvUrl: cvUrl || null,
+      certificatesUrl: certificatesUrl || null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection("users").doc(uid).set(userData, { merge: true });
+
+    // 🔗 If joining a company, also add to employees list
+    if (companyId) {
+      await db.collection("companies").doc(companyId)
+        .collection("employees")
+        .doc(uid)
+        .set({
+          name,
+          email,
+          position,
+          role: assignedRole,
+          joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
 
     // Send response AFTER all success
-    res.json({
-      message: "User registered & saved in Firestore successfully",
+    return res.json({
+      message: "Registered successfully",
+      roleAssigned: assignedRole,
+      companyId,
       firebaseUid: uid,
     });
   } catch (error) {
@@ -271,9 +334,25 @@ app.post("/login", async(req, res) => {
 
 app.get("/user/profile", verifyToken, loadUserRole, async (req, res) => {
   try {
+    const userSnap = await db.collection("users").doc(req.uid).get();
+    if (!userSnap.exists)
+      return res.status(404).json({ error: "User profile not found" });
+
+    const profile = userSnap.data();
+
+    let company = null;
+
+    if (profile.companyId) {
+      const companySnap = await db.collection("companies").doc(profile.companyId).get();
+      if (companySnap.exists) {
+        company = { id: companySnap.id, ...companySnap.data() };
+      }
+    }
+
     res.json({
       message: "Profile loaded successfully",
-      profile: req.user,
+      profile,
+      company,
       uid: req.uid,
     });
   } catch (err) {
@@ -1018,6 +1097,114 @@ app.get("/notifications/unread-count", verifyToken, async (req,res)=>{
       .where("status","==","unread")
       .get();
   res.json({count: snap.size});
+});
+
+app.post("/company/profile/create", verifyToken, loadUserRole, requireCompanyOwner, async (req, res) => {
+  try {
+    const { companyName, logoUrl, website, description } = req.body;
+
+    if (!companyName) return res.status(400).json({ error: "Company name required" });
+
+    const docRef = await db.collection("companies").add({
+      name: companyName,
+      logoUrl: logoUrl || null,
+      website: website || null,
+      description: description || "",
+      ownerId: req.uid,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({ success: true, companyId: docRef.id });
+  } catch (err) {
+    console.error("Company create error:", err);
+    return res.status(500).json({ error: "Failed to create company profile" });
+  }
+});
+
+app.get("/company/users", verifyToken, loadUserRole, requireCompanyOwner, async (req, res) => {
+  try {
+    const companyUsersSnap = await db
+      .collection("users")
+      .where("companyName", "==", req.user.companyName)
+      .get();
+
+    const users = companyUsersSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ users });
+  } catch (err) {
+    console.error("Company users fetch error:", err);
+    return res.status(500).json({ error: "Failed to load employees" });
+  }
+});
+
+app.put("/company/update-user-role",
+  verifyToken, loadUserRole, requireCompanyOwner,
+  async (req, res) => {
+    try {
+      const { userId, newRole } = req.body;
+
+      if (!userId || !newRole)
+        return res.status(400).json({ error: "Missing fields" });
+
+      // Ensure the targeted user belongs to same company
+      const targetSnap = await db.collection("users").doc(userId).get();
+      if (!targetSnap.exists) return res.status(404).json({ error: "User not found" });
+
+      const target = targetSnap.data();
+      if (target.companyName !== req.user.companyName) {
+        return res.status(403).json({ error: "You cannot modify someone outside your company" });
+      }
+
+      await db.collection("users").doc(userId).update({
+        companyRole: newRole, // company-scoped role
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await createNotification(
+        userId,
+        "Company Role Updated",
+        `Your company role has been changed to '${newRole}'.`,
+        "company-role-updated"
+      );
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Company modify role error:", err);
+      return res.status(500).json({ error: "Role change failed" });
+    }
+  }
+);
+
+app.put("/company/profile/update", verifyToken, loadUserRole, requireCompanyOwner, async (req, res) => {
+  try {
+    const { logoUrl, website, description } = req.body;
+
+    const companySnap = await db.collection("companies")
+      .where("ownerId", "==", req.uid)
+      .limit(1)
+      .get();
+
+    if (companySnap.empty) {
+      return res.status(404).json({ error: "Company profile not found" });
+    }
+
+    const companyId = companySnap.docs[0].id;
+
+    await db.collection("companies").doc(companyId).update({
+      logoUrl: logoUrl ?? undefined,
+      website: website ?? undefined,
+      description: description ?? undefined,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Company profile update error:", err);
+    return res.status(500).json({ error: "Failed to update company profile" });
+  }
 });
 
 const PORT = process.env.PORT || 5000;

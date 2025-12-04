@@ -17,16 +17,21 @@ function Register() {
     mobile: "",
     address: "",
     role: "",
+    companyName: "",
     position: "",
-    experience: "",
+    experienceValue: "",
+    experienceUnit: "years",
     cvUrl: "",
     certificatesUrl: "",
     acceptTerms: false,
   });
 
+  const [isGoogleUser, setIsGoogleUser] = useState(false);
   const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -34,92 +39,100 @@ function Register() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const navigate = useNavigate();
-
   const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
-      newErrors.email = "Invalid email";
-    if (!formData.password.trim()) newErrors.password = "Password is required";
-    else if (formData.password.length < 6)
-      newErrors.password = "At least 6 characters";
-    if (!formData.mobile.trim()) newErrors.mobile = "Mobile number is required";
-    else if (!/^\d{10}$/.test(formData.mobile))
-      newErrors.mobile = "Must be a 10-digit number";
-    if (!formData.address.trim()) newErrors.address = "Address required";
+    let newErrors = {};
+
+    if (!isGoogleUser) {
+      if (!formData.name.trim()) newErrors.name = "Name is required";
+      if (!formData.email.trim()) newErrors.email = "Email is required";
+      if (!formData.password.trim())
+        newErrors.password = "Password is required";
+      if (formData.password.length < 6)
+        newErrors.password = "At least 6 characters";
+    }
+
+    if (!formData.mobile.trim()) newErrors.mobile = "Mobile required";
+    if (!/^\d{10}$/.test(formData.mobile))
+      newErrors.mobile = "Must be 10 digits";
+
+    if (!formData.companyName.trim())
+      newErrors.companyName = "Company name required";
+
     if (!formData.role) newErrors.role = "Select a role";
+
+    if (!formData.address.trim()) newErrors.address = "Address required";
     if (!formData.position.trim()) newErrors.position = "Position required";
-    if (!formData.experience.trim()) newErrors.experience = "Experience required";
-    if (!formData.cvUrl.trim()) newErrors.cvUrl = "CV URL is required";
+    if (!formData.experienceValue)
+      newErrors.experience = "Experience required";
+
+    if (!formData.cvUrl.trim()) newErrors.cvUrl = "CV URL required";
     if (!formData.certificatesUrl.trim())
-      newErrors.certificatesUrl = "Certification URL is required";
+      newErrors.certificatesUrl = "Certificates URL required";
+
     if (!formData.acceptTerms)
       newErrors.acceptTerms = "You must accept the terms";
+
     return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
     setSuccessMessage("");
+
     const newErrors = validateForm();
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    if (Object.keys(newErrors).length > 0) return setErrors(newErrors);
 
     setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const user = userCredential.user;
 
-      await sendEmailVerification(user);
+    try {
+      let user = auth.currentUser;
+
+      if (!isGoogleUser) {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password
+        );
+        user = userCredential.user;
+        await sendEmailVerification(user);
+      }
 
       const token = await user.getIdToken();
 
-      const payload = {};
-      Object.keys(formData).forEach((key) => {
-        if (key !== "password" && key !== "acceptTerms") {
-          payload[key] = formData[key];
-        }
-      });
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+        address: formData.address,
+        role: formData.role,
+        companyName: formData.companyName,
+        position: formData.position,
+        experience: {
+          value: Number(formData.experienceValue),
+          unit: formData.experienceUnit,
+        },
+        cvUrl: formData.cvUrl,
+        certificatesUrl: formData.certificatesUrl,
+      };
 
       await axios.post("http://localhost:5000/register", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSuccessMessage("Welcome ${formData.name}");
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-        mobile: "",
-        address: "",
-        role: "",
-        position: "",
-        experience: "",
-        cvUrl: "",
-        certificatesUrl: "",
-        acceptTerms: false,
-      });
-      setErrors({});
+      setSuccessMessage(`Welcome ${formData.name}`);
+      setTimeout(() => navigate("/"), 2000);
     } catch (error) {
       setErrors({
-        submit: error.response?.data?.error || error.message || "Registration failed.",
+        submit:
+          error.response?.data?.error || error.message || "Registration failed.",
       });
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
@@ -127,182 +140,240 @@ function Register() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+
       const user = result.user;
-      const token = await user.getIdToken();
+      setIsGoogleUser(true);
 
-      const payload = {
-        name: user.displayName,
-        email: user.email,
+      setFormData((prev) => ({
+        ...prev,
+        name: user.displayName || "",
+        email: user.email || "",
+        password: "",
         role: "job-seeker",
-      };
-
-      await axios.post("http://localhost:5000/register", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      setSuccessMessage("Google sign-in successful!");
+      }));
     } catch (error) {
       setErrors({ submit: error.message });
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
-  
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => {
-        navigate("/");
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <div className="bg-white p-8 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-center mb-6">Register</h2>
 
+        {/* GOOGLE ACCOUNT INFO DISPLAY */}
+        {isGoogleUser && (
+          <div className="mb-4 bg-blue-50 p-3 rounded border-l-4 border-blue-500">
+            <p>
+              <strong>Signed in via Google:</strong> {formData.name} ({formData.email})
+            </p>
+          </div>
+        )}
+
         {successMessage && (
-          <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-md">
+          <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
             {successMessage}
           </div>
         )}
+
         {errors.submit && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
             {errors.submit}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {[
-            { id: "name", label: "Full Name", type: "text" },
-            { id: "email", label: "Email", type: "email" },
-            { id: "password", label: "Password", type: "password" },
-            { id: "mobile", label: "Mobile", type: "tel" },
-            { id: "address", label: "Address", type: "textarea" },
-          ].map((field) => (
-            <div key={field.id}>
-              <label className="block mb-1 text-sm font-medium text-gray-700">
-                {field.label} <span className="text-red-500">*</span>
-              </label>
-              {field.type === "textarea" ? (
-                <textarea
-                  id={field.id}
-                  name={field.id}
-                  value={formData[field.id]}
-                  onChange={handleChange}
-                  rows="3"
-                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
+          
+          {/* ONLY SHOW NAME AND EMAIL INPUT IF NOT GOOGLE USER */}
+          {!isGoogleUser && (
+            <>
+              <div>
+                <label className="block text-sm font-medium">
+                  Full Name *
+                </label>
                 <input
-                  type={field.type}
-                  id={field.id}
-                  name={field.id}
-                  value={formData[field.id]}
+                  type="text"
+                  name="name"
+                  value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded"
                 />
-              )}
-              {errors[field.id] && (
-                <p className="text-sm text-red-500 mt-1">{errors[field.id]}</p>
-              )}
-            </div>
-          ))}
+                {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border rounded"
+                />
+                {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border rounded"
+                />
+                {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+              </div>
+            </>
+          )}
+
+          {/* COMPANY NAME FIRST */}
           <div>
-            <label className="block mb-1 text-sm font-medium text-gray-700">
-              Role <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium">Company Name *</label>
+            <input
+              type="text"
+              name="companyName"
+              value={formData.companyName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded"
+            />
+            {errors.companyName && (
+              <p className="text-red-500 text-sm">{errors.companyName}</p>
+            )}
+          </div>
+
+          {/* ROLE */}
+          <div>
+            <label className="block text-sm font-medium">Objective *</label>
             <select
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded"
             >
-              <option value="">Select a role</option>
+              <option value="">Select Objective</option>
               <option value="job-seeker">Job Seeker</option>
               <option value="recruiter">Recruiter</option>
               <option value="company">Company</option>
             </select>
-            {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
+            {errors.role && <p className="text-red-500 text-sm">{errors.role}</p>}
           </div>
 
-          {["position", "experience"].map((field) => (
-            <div key={field}>
-              <label className="block mb-1 text-sm font-medium text-gray-700 capitalize">
-                {field} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id={field}
-                name={field}
-                value={formData[field]}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
-              />
-              {errors[field] && (
-                <p className="text-sm text-red-500 mt-1">{errors[field]}</p>
-              )}
-            </div>
-          ))}
+          {/* REST OF THE FORM — unchanged */}
+          <div>
+            <label className="block text-sm font-medium">Mobile *</label>
+            <input
+              type="tel"
+              name="mobile"
+              value={formData.mobile}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded"
+            />
+            {errors.mobile && <p className="text-red-500 text-sm">{errors.mobile}</p>}
+          </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              CV URL <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium">Address *</label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded"
+            />
+            {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">Role *</label>
+            <input
+              type="text"
+              name="position"
+              value={formData.position}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded"
+            />
+            {errors.position && <p className="text-red-500 text-sm">{errors.position}</p>}
+          </div>
+
+          {/* EXPERIENCE */}
+          <div>
+            <label className="block text-sm font-medium">Experience *</label>
+
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                name="experienceValue"
+                value={formData.experienceValue}
+                onChange={handleChange}
+                placeholder="Value"
+                className="w-1/2 px-3 py-2 border rounded"
+              />
+              <select
+                name="experienceUnit"
+                value={formData.experienceUnit}
+                onChange={handleChange}
+                className="w-1/2 px-3 py-2 border rounded"
+              >
+                <option value="years">Years</option>
+                <option value="months">Months</option>
+              </select>
+            </div>
+
+            {errors.experience && <p className="text-red-500 text-sm">{errors.experience}</p>}
+          </div>
+
+          {/* URLs */}
+          <div>
+            <label className="block text-sm font-medium">CV URL *</label>
             <input
               type="url"
               name="cvUrl"
               value={formData.cvUrl}
               onChange={handleChange}
-              placeholder="https://drive.google.com/..."
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border rounded"
             />
-            {errors.cvUrl && <p className="text-sm text-red-500">{errors.cvUrl}</p>}
+            {errors.cvUrl && <p className="text-red-500 text-sm">{errors.cvUrl}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Certification URL <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium">Certification URL *</label>
             <input
               type="url"
               name="certificatesUrl"
               value={formData.certificatesUrl}
               onChange={handleChange}
-              placeholder="https://drive.google.com/..."
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border rounded"
             />
             {errors.certificatesUrl && (
-              <p className="text-sm text-red-500">{errors.certificatesUrl}</p>
+              <p className="text-red-500 text-sm">{errors.certificatesUrl}</p>
             )}
           </div>
 
+          {/* TERMS */}
           <div className="flex items-start">
             <input
               type="checkbox"
-              id="acceptTerms"
               name="acceptTerms"
               checked={formData.acceptTerms}
               onChange={handleChange}
-              className="mt-1 h-4 w-4 text-blue-600"
+              className="h-4 w-4"
             />
-            <label htmlFor="acceptTerms" className="ml-2 text-sm text-gray-700">
-              I accept the Terms and Conditions
+            <label className="ml-2 text-sm">
+              I accept the Terms and Conditions *
             </label>
           </div>
-          {errors.acceptTerms && (
-            <p className="text-sm text-red-500">{errors.acceptTerms}</p>
-          )}
+          {errors.acceptTerms && <p className="text-red-500 text-sm">{errors.acceptTerms}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
           >
             {loading ? "Registering..." : "Register"}
           </button>
@@ -310,15 +381,19 @@ function Register() {
 
         <button
           onClick={handleGoogleSignIn}
-          className="w-full mt-4 border border-gray-300 py-2 rounded-md hover:bg-gray-100 flex justify-center items-center gap-2"
+          className="w-full mt-4 border py-2 rounded hover:bg-gray-100 flex justify-center gap-2"
         >
-          <img src="https://t4.ftcdn.net/jpg/03/08/54/37/360_F_308543787_DmPo1IELtKY9hG8E8GlW8KHEsRC7JiDN.jpg" alt="Google" className="w-5 h-5" />
+          <img
+            src="https://developers.google.com/identity/images/g-logo.png"
+            alt="Google"
+            className="w-5 h-5"
+          />
           Continue with Google
         </button>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center">
           Already have an account?{" "}
-          <Link to="/auth/login" className="text-blue-600 hover:text-blue-700">
+          <Link to="/auth/login" className="text-blue-600">
             Login here
           </Link>
         </p>

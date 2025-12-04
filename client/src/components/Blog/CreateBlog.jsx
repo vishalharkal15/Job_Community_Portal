@@ -29,7 +29,6 @@ export default function CreateBlog() {
       likes: [],
       dislikes: [],
     });
-
     navigate("/blog");
   }
 

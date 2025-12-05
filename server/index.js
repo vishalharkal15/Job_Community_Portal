@@ -216,7 +216,7 @@ app.post("/register", async (req, res) => {
       certificatesUrl
     } = req.body;
 
-    // Validate experience
+    // Validate experience structure
     if (
       !experience ||
       typeof experience !== "object" ||
@@ -229,6 +229,7 @@ app.post("/register", async (req, res) => {
     companyName = companyName ? companyName.trim() : null;
 
     let companyId = null;
+    let companyRole = "employee"; // default role
 
     if (companyName) {
       // Check if company exists
@@ -239,30 +240,54 @@ app.post("/register", async (req, res) => {
         .get();
 
       if (!companySnap.empty) {
-        // Use existing company
-        companyId = companySnap.docs[0].id;
+        // Existing company
+        const doc = companySnap.docs[0];
+
+        companyId = doc.id;
+        const companyData = doc.data();
+
+        // If owner list missing -> initialize it & add this uid
+        if (!companyData.owners || !Array.isArray(companyData.owners)) {
+          await doc.ref.update({
+            owners: [uid],
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          companyRole = "owner";
+        } 
+        // If owners list exists but does NOT contain this uid -> employee
+        else if (!companyData.owners.includes(uid)) {
+          companyRole = "employee";
+        } 
+        // If already owner
+        else {
+          companyRole = "owner";
+        }
+
       } else {
         // Create new company
         const newCompanyRef = await db.collection("companies").add({
           name: companyName,
           logoUrl: null,
-          ownerId: uid,
+          owners: [uid], // store owner list
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         companyId = newCompanyRef.id;
+        companyRole = "owner";
       }
     }
 
+    // Create / update user record
     const userData = {
       name,
       email,
       mobile,
       address,
-      role,
+      role, // Global platform role
       companyName,
       companyId: companyId || null,
+      companyRole, // Track employee or owner
       position,
       experience, // { value, unit }
       cvUrl: cvUrl || null,
@@ -273,7 +298,7 @@ app.post("/register", async (req, res) => {
 
     await db.collection("users").doc(uid).set(userData, { merge: true });
 
-    // If company exists, register employee under company
+    // Ensure user is listed as employee under company
     if (companyId) {
       await db
         .collection("companies")
@@ -284,22 +309,25 @@ app.post("/register", async (req, res) => {
           name,
           email,
           position,
-          role,
+          companyRole,
           joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
 
     return res.json({
       message: "Registered successfully",
-      roleAssigned: role,
+      companyAssigned: companyName || null,
+      companyRole,
       companyId,
       firebaseUid: uid,
     });
+
   } catch (error) {
     console.error("Error saving user:", error);
     return res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 app.post("/login", async(req, res) => {

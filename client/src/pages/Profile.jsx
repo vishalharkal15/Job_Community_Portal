@@ -604,6 +604,19 @@ useEffect(() => {
                     {editErrors.address && <p className="text-sm text-red-500 mt-1">{editErrors.address}</p>}
                   </div>
 
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Company Name
+                    </label>
+                    <input
+                      name="companyName"
+                      value={form.companyName}
+                      onChange={handleChange}
+                      className="mt-1 w-full px-3 py-2 border rounded bg-white dark:bg-gray-700
+                                border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Position</label>
                     <input

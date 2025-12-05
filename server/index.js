@@ -1129,7 +1129,7 @@ app.get("/company/users", verifyToken, loadUserRole, requireCompanyOwner, async 
   try {
     const companyUsersSnap = await db
       .collection("users")
-      .where("companyName", "==", req.user.companyName)
+      .where("companyId", "==", req.user.companyId)
       .get();
 
     const users = companyUsersSnap.docs.map(doc => ({
@@ -1185,9 +1185,7 @@ app.put("/company/update-user-role",
 app.put("/company/update", async (req, res) => {
   const token = req.headers.authorization?.split("Bearer ")[1];
 
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized - No token provided" });
-  }
+  if (!token) return res.status(401).json({ error: "Missing token" });
 
   try {
     const decoded = await admin.auth().verifyIdToken(token);
@@ -1195,9 +1193,6 @@ app.put("/company/update", async (req, res) => {
 
     const { name, address, description, logoUrl } = req.body;
 
-    if (!name) return res.status(400).json({ error: "Company name required" });
-
-    // Fetch company linked to this user
     const companySnapshot = await db
       .collection("companies")
       .where("ownerId", "==", uid)
@@ -1205,20 +1200,38 @@ app.put("/company/update", async (req, res) => {
       .get();
 
     if (companySnapshot.empty) {
-      return res.status(404).json({ error: "Company not found or user not owner" });
+      return res.status(404).json({ error: "No company found for this user" });
     }
 
     const companyRef = companySnapshot.docs[0].ref;
 
+    // Update actual company document
     await companyRef.update({
       name,
       address: address || null,
       description: description || null,
       logoUrl: logoUrl || null,
-      updatedAt: new Date(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    res.status(200).json({ message: "Company updated successfully" });
+    // ⭐ Sync new name to all users under this company
+    const employeesSnap = await db
+      .collection("users")
+      .where("companyId", "==", companyRef.id)
+      .get();
+
+    const batch = db.batch();
+
+    employeesSnap.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        companyName: name,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+
+    res.status(200).json({ message: "Company updated and synced successfully" });
 
   } catch (error) {
     console.error("Company update failed:", error);

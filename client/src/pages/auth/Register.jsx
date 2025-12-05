@@ -73,7 +73,7 @@ function Register() {
       newErrors.certificatesUrl = "Certificates URL required";
 
     if (!formData.acceptTerms)
-      newErrors.acceptTerms = "You must accept the terms";
+      newErrors.acceptTerms = "You must accept the Terms & Conditions";
 
     return newErrors;
   };

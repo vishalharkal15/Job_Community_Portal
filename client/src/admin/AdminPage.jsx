@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { auth } from "../firebase/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 import { BarChart3, Users, Briefcase, FileText, Calendar, TrendingUp, Activity } from "lucide-react";
 
 export default function AdminPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState("");
 
@@ -19,6 +22,7 @@ export default function AdminPage() {
   const [meetingFilter, setMeetingFilter] = useState("all"); // all, pending, approved, declined
   const [userRoleFilter, setUserRoleFilter] = useState("all"); // all, or specific role
   const [jobTypeFilter, setJobTypeFilter] = useState("all"); // all, full-time, part-time, etc.
+  const [refresh, setRefresh] = useState(0);
 
   const ROLES = ["super-admin", "admin", "job-seeker", "recruiter", "company"];
 
@@ -82,7 +86,13 @@ export default function AdminPage() {
     });
 
     return () => unsub();
-  }, []);
+  }, [refresh]);
+
+  useEffect(() => {
+    if (location.state?.refresh) {
+      setRefresh(prev => prev + 1);
+    }
+  }, [location.state]);
 
   const updateUserRole = async (userId, newRole) => {
     if (currentUserRole !== "super-admin") return;
@@ -105,55 +115,12 @@ export default function AdminPage() {
     }
   };
 
-  const approveMeeting = async (meeting) => {
-    const date = prompt("Select meeting date (YYYY-MM-DD):");
-    const time = prompt("Select meeting time (HH:MM):");
-
-    if (!date || !time) return alert("Date and time required.");
-
-    const token = await auth.currentUser.getIdToken();
-
-    try {
-      await axios.put(
-        `http://localhost:5000/admin/meetings/${meeting.id}/approve`,
-        { date, time },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      alert("Meeting Approved & Zoom link sent!");
-
-      setMeetings((prev) =>
-        prev.map((m) =>
-          m.id === meeting.id ? { ...m, status: "approved" } : m
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Approval failed");
-    }
+  const approveMeeting = (meeting) => {
+    navigate("/admin/meeting-approval", { state: { meeting, action: "approve" } });
   };
 
-  const declineMeeting = async (meeting) => {
-    const reason = prompt("Enter decline reason:");
-
-    const token = await auth.currentUser.getIdToken();
-
-    try {
-      await axios.put(
-        `http://localhost:5000/admin/meetings/${meeting.id}/decline`,
-        { reason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setMeetings((prev) =>
-        prev.map((m) =>
-          m.id === meeting.id ? { ...m, status: "declined" } : m
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Decline failed");
-    }
+  const declineMeeting = (meeting) => {
+    navigate("/admin/meeting-approval", { state: { meeting, action: "decline" } });
   };
 
   if (loading)

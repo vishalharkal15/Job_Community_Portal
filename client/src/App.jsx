@@ -17,6 +17,8 @@ import CreateJob from './components/Jobs/CreateJob'
 import JobDetails from './components/Jobs/JobDetails'
 import AdminPage from './admin/AdminPage';
 import Notifications from './pages/Notifications'
+import MeetingApprovalPage from './pages/MeetingApprovalPage'
+import CompanyDashboard from './pages/CompanyDashboard'
 
 function App() {
   return (
@@ -40,6 +42,8 @@ function App() {
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/meeting-approval" element={<MeetingApprovalPage />} />
+            <Route path="/company/dashboard" element={<CompanyDashboard />} />
           </Routes>
         </main>
         <Footer />

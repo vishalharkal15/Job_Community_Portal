@@ -7,6 +7,8 @@ export default function Home() {
   const navigate = useNavigate();
   const [search, setSearch] = useState({ role: "", location: "" });
   const [allJobs, setAllJobs] = useState([]);
+  const [companyCount, setCompanyCount] = useState(0);
+  const [jobSeekerCount, setJobSeekerCount] = useState(0);
   const [displayedJobs, setDisplayedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,21 @@ export default function Home() {
       }
     };
     loadAllJobs();
+  }, []);
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/public/stats");
+
+        setCompanyCount(res.data.companyCount);
+        setJobSeekerCount(res.data.jobSeekerCount);
+      } catch (err) {
+        console.error("Stats load error:", err);
+      }
+    };
+
+    loadCounts();
   }, []);
 
   // 🔹 Search Handler
@@ -150,15 +167,15 @@ export default function Home() {
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-6 mt-12 max-w-3xl mx-auto">
             <div className="text-center text-white">
-              <div className="text-3xl md:text-4xl font-bold">{allJobs.length}+</div>
+              <div className="text-3xl md:text-4xl font-bold">{allJobs.length}</div>
               <div className="text-white/80 text-sm md:text-base mt-1">Active Jobs</div>
             </div>
             <div className="text-center text-white">
-              <div className="text-3xl md:text-4xl font-bold">1000+</div>
+              <div className="text-3xl md:text-4xl font-bold">{companyCount}</div>
               <div className="text-white/80 text-sm md:text-base mt-1">Companies</div>
             </div>
             <div className="text-center text-white">
-              <div className="text-3xl md:text-4xl font-bold">50K+</div>
+              <div className="text-3xl md:text-4xl font-bold">{jobSeekerCount}</div>
               <div className="text-white/80 text-sm md:text-base mt-1">Job Seekers</div>
             </div>
           </div>

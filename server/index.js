@@ -343,8 +343,6 @@ app.post("/register", async (req, res) => {
   }
 });
 
-
-
 app.post("/login", async(req, res) => {
   const token = req.headers.authorization?.split("Bearer ")[1]
 
@@ -435,6 +433,28 @@ app.put("/update-profile", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+app.get("/public/stats", async (req, res) => {
+  try {
+    const snap = await db.collection("users").get();
+    const users = snap.docs.map(doc => doc.data());
+
+    const companyCount = users.filter(u => u.role === "company").length;
+    const jobSeekerCount = users.filter(u => u.role === "job-seeker").length;
+
+    const jobSnap = await db.collection("jobs").get();
+    const jobCount = jobSnap.size;
+
+    return res.json({
+      companyCount,
+      jobSeekerCount,
+      jobCount,
+    });
+  } catch (e) {
+    console.error("Stats error:", e);
+    res.status(500).json({ error: "Failed to load stats" });
   }
 });
 

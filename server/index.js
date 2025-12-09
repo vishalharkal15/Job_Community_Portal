@@ -213,10 +213,24 @@ app.post("/register", async (req, res) => {
       position,
       experience,
       cvUrl,
-      certificatesUrl
+      certificatesUrl,
+      gender
     } = req.body;
 
-    // Validate experience structure
+    if (!name || !email || !mobile || !address || !role) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    const allowedGenders = ["male", "female", "other"];
+    if (gender && !allowedGenders.includes(gender.toLowerCase())) {
+      return res.status(400).json({ error: "Invalid gender value" });
+    }
+    
     if (
       !experience ||
       typeof experience !== "object" ||
@@ -292,6 +306,7 @@ app.post("/register", async (req, res) => {
       experience, // { value, unit }
       cvUrl: cvUrl || null,
       certificatesUrl: certificatesUrl || null,
+      gender: gender || null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };

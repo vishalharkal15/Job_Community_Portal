@@ -23,6 +23,7 @@ function Register() {
     experienceUnit: "years",
     cvUrl: "",
     certificatesUrl: "",
+    gender: "",
     acceptTerms: false,
   });
 
@@ -57,6 +58,8 @@ function Register() {
     if (!formData.mobile.trim()) newErrors.mobile = "Mobile required";
     if (!/^\d{10}$/.test(formData.mobile))
       newErrors.mobile = "Must be 10 digits";
+
+    if (!formData.gender) newErrors.gender = "Gender is required";
 
     if (!formData.companyName.trim())
       newErrors.companyName = "Company name required";
@@ -117,6 +120,7 @@ function Register() {
         },
         cvUrl: formData.cvUrl,
         certificatesUrl: formData.certificatesUrl,
+        gender: formData.gender,
       };
 
       await axios.post("http://localhost:5000/register", payload, {
@@ -286,6 +290,25 @@ function Register() {
               className="w-full px-3 py-2 border rounded"
             />
             {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">Gender *</label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+
+            {errors.gender && (
+              <p className="text-red-500 text-sm">{errors.gender}</p>
+            )}
           </div>
 
           <div>

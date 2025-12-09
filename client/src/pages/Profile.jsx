@@ -33,6 +33,7 @@ function Profile() {
     companyAddress: '',
     companyDescription: '',
     companyLogoUrl: '',
+    gender: '',
   })
 
 useEffect(() => {
@@ -55,14 +56,15 @@ useEffect(() => {
           address: data.address || '',
           position: data.position || '',
           experience: typeof data.experience === "object"
-            ? data.experience.value
-            : data.experience || '',
+            ? Number(data.experience.value)
+            : Number(data.experience) || '',
           experienceUnit: typeof data.experience === "object"
             ? data.experience.unit
             : "years",
           cvUrl: data.cvUrl || '',
           certificatesUrl: data.certificatesUrl || '',
           companyName: data.companyName || '',
+          gender: data.gender || '',
         })
 
         // ⭐ Fetch company data here — where data exists
@@ -115,8 +117,8 @@ useEffect(() => {
       address: userData?.address || '',
       position: userData?.position || '',
       experience: typeof userData?.experience === "object"
-          ? userData.experience.value
-          : userData?.experience || '',
+          ? Number(userData.experience.value)
+          : Number(userData?.experience) || '',
       experienceUnit: typeof userData?.experience === "object"
           ? userData.experience.unit
           : "years",
@@ -126,6 +128,7 @@ useEffect(() => {
       companyAddress: userData?.companyAddress || '',
       companyDescription: userData?.companyDescription || '',
       companyLogoUrl: userData?.companyLogo || '',
+      gender: userData?.gender || '',
     })
     setIsEditing(true)
   }
@@ -149,8 +152,12 @@ useEffect(() => {
       errs.mobile = 'Mobile must be 10 digits'
     if (!form.address.trim()) errs.address = 'Address is required'
     if (!form.position.trim()) errs.position = 'Position is required'
-    if (!form.experience.trim()) errs.experience = 'Experience is required'
-    // If urls provided, very basic url check
+    if (form.experience === "" || isNaN(form.experience)) {
+      errs.experience = "Experience must be a number";
+    } else if (form.experience < 0) {
+      errs.experience = "Experience cannot be negative";
+    }
+    if (!form.gender.trim()) errs.gender = "Gender is required";
     if (form.cvUrl && !/^https?:\/\//i.test(form.cvUrl)) errs.cvUrl = 'CV URL should start with http(s)://'
     if (form.certificatesUrl && !/^https?:\/\//i.test(form.certificatesUrl)) errs.certificatesUrl = 'Certificate URL should start with http(s)://'
     return errs
@@ -189,6 +196,7 @@ useEffect(() => {
         cvUrl: form.cvUrl?.trim() || null,
         certificatesUrl: form.certificatesUrl?.trim() || null,
         companyName: form.companyName.trim(),
+        gender: form.gender,
       }
 
       // PUT to your backend update route (you should implement /update-profile in server)
@@ -628,6 +636,28 @@ useEffect(() => {
                     {editErrors.address && <p className="text-sm text-red-500 mt-1">{editErrors.address}</p>}
                   </div>
 
+                  <div  className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Gender
+                    </label>
+                    <select
+                      name="gender"
+                      value={form.gender}
+                      onChange={handleChange}
+                      className="mt-1 w-full px-3 py-2 border rounded bg-white dark:bg-gray-700
+                                border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+
+                    {editErrors.gender && (
+                      <p className="text-sm text-red-500 mt-1">{editErrors.gender}</p>
+                    )}
+                  </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Company Name
@@ -657,6 +687,8 @@ useEffect(() => {
                     
                     <div className="flex gap-2">
                       <input
+                        type="number"
+                        min="0"
                         name="experience"
                         value={form.experience}
                         onChange={handleChange}

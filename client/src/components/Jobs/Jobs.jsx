@@ -40,7 +40,7 @@ export default function Jobs() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Available Jobs</h1>
 
-        {currentUser && userRole === "recruiter" && (
+        {currentUser && (userRole === "recruiter" || userRole === "company") && (
           <button
             onClick={handleAddJob}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"

@@ -13,7 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const categories = [
-    { name: "Software Development", icon: "💻", count: 0 },
+    { name: "Software Developer", icon: "💻", count: 0 },
     { name: "Marketing", icon: "📱", count: 0 },
     { name: "Finance", icon: "💰", count: 0 },
     { name: "Human Resources", icon: "👥", count: 0 },

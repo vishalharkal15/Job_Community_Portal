@@ -1,8 +1,9 @@
 // src/components/Jobs/CreateJob.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import axios from "axios";
 import { db } from "../../firebase/firebaseConfig";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateJob() {
@@ -16,35 +17,77 @@ export default function CreateJob() {
   const [maxSalary, setMaxSalary] = useState("");
   const [jobType, setJobType] = useState("Full-time");
   const [workMode, setWorkMode] = useState("Remote");
+  const [category, setCategory] = useState(""); // ⭐ TEXT INPUT
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (userRole !== "recruiter")
+  // ⭐ Auto-fill company + location
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      try {
+        if (!currentUser) return;
+
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (!userSnap.exists()) return;
+
+        const userData = userSnap.data();
+        const companyId = userData.companyId;
+        if (!companyId) return;
+
+        const companyDocRef = doc(db, "companies", companyId);
+        const companySnap = await getDoc(companyDocRef);
+
+        if (!companySnap.exists()) return;
+
+        const companyData = companySnap.data();
+
+        setCompany(companyData.name || "");
+        setLocation(companyData.address || "");
+      } catch (err) {
+        console.error("Failed to fetch company info:", err);
+      }
+    };
+
+    fetchCompanyInfo();
+  }, [currentUser]);
+
+  if (userRole !== "recruiter" && userRole !== "company") {
     return (
       <p className="p-6 text-red-600">
         You do not have permissions to create a job.
       </p>
     );
+  }
 
+  // ⭐ Submit job to backend POST /jobs/create
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await addDoc(collection(db, "jobs"), {
-        title,
-        company,
-        location,
-        minSalary: parseInt(minSalary),
-        maxSalary: parseInt(maxSalary),
-        type: jobType,
-        workMode,
-        description,
-        postedAt: serverTimestamp(),
-        createdBy: currentUser.uid,
-        savedBy: [],
-        appliedBy: [],
-      });
+      const token = await currentUser.getIdToken();
+
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/jobs/create`,
+        {
+          title,
+          company,
+          location,
+          minSalary: Number(minSalary),
+          maxSalary: Number(maxSalary),
+          type: jobType,
+          workMode,
+          category,       // ⭐ TEXT FIELD SENT HERE
+          description,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       alert("Job created successfully!");
       navigate("/jobs");
@@ -61,6 +104,7 @@ export default function CreateJob() {
       <h1 className="text-3xl font-bold mb-6">Create a Job</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+
         <input
           className="border p-2 w-full"
           placeholder="Job Title"
@@ -70,19 +114,17 @@ export default function CreateJob() {
         />
 
         <input
-          className="border p-2 w-full"
+          className="border p-2 w-full bg-gray-100"
           placeholder="Company Name"
           value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          required
+          disabled
         />
 
         <input
-          className="border p-2 w-full"
+          className="border p-2 w-full bg-gray-100"
           placeholder="Location (City, Country)"
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          required
+          disabled
         />
 
         <div className="flex gap-4">
@@ -94,6 +136,7 @@ export default function CreateJob() {
             onChange={(e) => setMinSalary(e.target.value)}
             required
           />
+
           <input
             className="border p-2 w-1/2"
             placeholder="Max Salary"
@@ -110,9 +153,9 @@ export default function CreateJob() {
             value={jobType}
             onChange={(e) => setJobType(e.target.value)}
           >
-            <option value="Full-time">Full-time</option>
-            <option value="Part-time">Part-time</option>
-            <option value="Contract">Contract</option>
+            <option>Full-time</option>
+            <option>Part-time</option>
+            <option>Contract</option>
           </select>
 
           <select
@@ -120,11 +163,20 @@ export default function CreateJob() {
             value={workMode}
             onChange={(e) => setWorkMode(e.target.value)}
           >
-            <option value="Remote">Remote</option>
-            <option value="Hybrid">Hybrid</option>
-            <option value="Onsite">Onsite</option>
+            <option>Remote</option>
+            <option>Hybrid</option>
+            <option>Onsite</option>
           </select>
         </div>
+
+        {/* ⭐ CATEGORY TEXT INPUT */}
+        <input
+          className="border p-2 w-full"
+          placeholder="Category (e.g., Software, Marketing, HR...)"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          required
+        />
 
         <textarea
           className="border p-2 w-full"

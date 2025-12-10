@@ -799,6 +799,42 @@ app.get("/jobs", async (req, res) => {
   }
 });
 
+app.post("/jobs/create", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const uid = req.uid;
+
+    if (req.user.role !== "recruiter" && req.user.role !== "company") {
+      return res.status(403).json({ error: "Not allowed to create jobs" });
+    }
+
+    const { title, company, location, minSalary, maxSalary, type, workMode, description, category } = req.body;
+
+    const newJob = {
+      title,
+      company,
+      location,
+      minSalary,
+      maxSalary,
+      type,
+      workMode,
+      description,
+      category: category || null,
+      postedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: uid,
+      savedBy: [],
+      appliedBy: [],
+    };
+
+    const jobRef = await db.collection("jobs").add(newJob);
+
+    return res.json({ success: true, id: jobRef.id });
+
+  } catch (err) {
+    console.error("Job creation error:", err);
+    return res.status(500).json({ error: "Failed to create job" });
+  }
+});
+
 app.get("/jobs/latest", async (req, res) => {
   try {
     const snapshot = await db.collection("jobs")
@@ -834,7 +870,8 @@ app.get("/search-jobs", async (req, res) => {
     if (r.trim()) {
       jobs = jobs.filter(job =>
         job.title?.toLowerCase().includes(r) ||
-        job.company?.toLowerCase().includes(r)
+        job.company?.toLowerCase().includes(r) ||
+        job.category?.toLowerCase().includes(r)
       );
     }
 
@@ -955,9 +992,19 @@ app.put("/jobs/:id/edit", verifyToken, loadUserRole, async (req, res) => {
   try {
     const jobId = req.params.id;
     const uid = req.uid;
-    const { title, description, company, location, salary, skillsRequired } = req.body;
 
-    // Fetch job
+    const {
+      title,
+      description,
+      company,
+      location,
+      minSalary,
+      maxSalary,
+      type,
+      workMode,
+      category
+    } = req.body;
+
     const jobRef = db.collection("jobs").doc(jobId);
     const jobSnap = await jobRef.get();
 
@@ -966,30 +1013,38 @@ app.put("/jobs/:id/edit", verifyToken, loadUserRole, async (req, res) => {
 
     const job = jobSnap.data();
 
-    // Block user if not owner
-    if (job.postedBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
-      return res.status(403).json({ error: "Access denied — You are not authorized to edit this job" });
+    if (job.createdBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
+      return res.status(403).json({ error: "Access denied — Not allowed to edit this job" });
     }
 
-    await jobRef.update({
-      title,
-      description,
-      company,
-      location,
-      salary: salary || job.salary,
-      skillsRequired: skillsRequired || job.skillsRequired,
+    const updatedFields = {
+      title: title ?? job.title,
+      description: description ?? job.description,
+      company: company ?? job.company,
+      location: location ?? job.location,
+      minSalary: minSalary ?? job.minSalary,
+      maxSalary: maxSalary ?? job.maxSalary,
+      type: type ?? job.type,
+      workMode: workMode ?? job.workMode,
+      category: category ?? job.category,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
 
+    await jobRef.update(updatedFields);
+
+    // Notify job owner
     await createNotification(
       uid,
       "Job Updated",
-      `Job '${title}' was updated.`,
+      `Your job '${updatedFields.title}' has been updated.`,
       "job-updated",
       jobId
     );
 
-    return res.json({ message: "Job updated successfully" });
+    return res.json({
+      message: "Job updated successfully",
+      updated: updatedFields
+    });
 
   } catch (err) {
     console.error("Job update error:", err);
@@ -1012,7 +1067,7 @@ app.delete("/jobs/:id", verifyToken, loadUserRole, async (req, res) => {
     const job = jobSnap.data();
 
     // Check ownership or admin override
-    if (job.postedBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
+    if (job.createdBy !== uid && req.user.role !== "admin" && req.user.role !== "super-admin") {
       return res.status(403).json({ error: "Access denied — you cannot delete this job" });
     }
 
@@ -1129,7 +1184,6 @@ app.get("/notifications", verifyToken, async (req, res) => {
     return res.status(500).json({ error: "Failed to load notifications" });
   }
 });
-
 
 app.put("/notifications/:id/read", verifyToken, async (req, res) => {
   try {

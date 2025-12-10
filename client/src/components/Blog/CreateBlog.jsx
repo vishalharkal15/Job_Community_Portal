@@ -13,7 +13,7 @@ export default function CreateBlog() {
   const [image, setImage] = useState("");
   const [content, setContent] = useState("");
 
-  if (userRole !== "recruiter")
+  if (userRole == "job-seeker")
     return <p className="p-6 text-red-600">You do not have permissions.</p>;
 
   async function submitBlog(e) {

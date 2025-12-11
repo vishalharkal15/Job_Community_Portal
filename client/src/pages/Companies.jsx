@@ -40,111 +40,10 @@ export default function Companies() {
     try {
       const response = await axios.get("http://localhost:5000/companies");
       setCompanies(response.data.companies || []);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching companies:", error);
-      // Use mock data if API fails
-      setCompanies([
-        {
-          id: "1",
-          name: "Tech Innovators Inc",
-          logo: null,
-          industry: "Technology",
-          location: "San Francisco, CA",
-          employeeCount: "100-500",
-          openJobs: 12,
-          followers: 2500,
-          website: "https://techinnovators.com",
-        },
-        {
-          id: "2",
-          name: "HealthCare Solutions",
-          logo: null,
-          industry: "Healthcare",
-          location: "New York, NY",
-          employeeCount: "500-1000",
-          openJobs: 8,
-          followers: 1800,
-          website: "https://healthcaresolutions.com",
-        },
-        {
-          id: "3",
-          name: "Finance Pro Group",
-          logo: null,
-          industry: "Finance",
-          location: "London, UK",
-          employeeCount: "200-500",
-          openJobs: 15,
-          followers: 3200,
-          website: "https://financeprogroup.com",
-        },
-        {
-          id: "4",
-          name: "EduTech Learning",
-          logo: null,
-          industry: "Education",
-          location: "Boston, MA",
-          employeeCount: "50-200",
-          openJobs: 5,
-          followers: 1200,
-          website: "https://edutechlearning.com",
-        },
-        {
-          id: "5",
-          name: "E-Commerce Global",
-          logo: null,
-          industry: "E-commerce",
-          location: "Seattle, WA",
-          employeeCount: "1000+",
-          openJobs: 25,
-          followers: 5000,
-          website: "https://ecommerceglobal.com",
-        },
-        {
-          id: "6",
-          name: "Marketing Masters",
-          logo: null,
-          industry: "Marketing",
-          location: "Los Angeles, CA",
-          employeeCount: "50-100",
-          openJobs: 7,
-          followers: 980,
-          website: "https://marketingmasters.com",
-        },
-        {
-          id: "7",
-          name: "Manufacturing Plus",
-          logo: null,
-          industry: "Manufacturing",
-          location: "Chicago, IL",
-          employeeCount: "500-1000",
-          openJobs: 18,
-          followers: 2100,
-          website: "https://manufacturingplus.com",
-        },
-        {
-          id: "8",
-          name: "Consulting Experts",
-          logo: null,
-          industry: "Consulting",
-          location: "Dallas, TX",
-          employeeCount: "200-500",
-          openJobs: 10,
-          followers: 1500,
-          website: "https://consultingexperts.com",
-        },
-        {
-          id: "9",
-          name: "Digital Solutions Co",
-          logo: null,
-          industry: "Technology",
-          location: "Austin, TX",
-          employeeCount: "100-200",
-          openJobs: 14,
-          followers: 1750,
-          website: "https://digitalsolutions.com",
-        },
-      ]);
+      setCompanies([]); // No mock data
+    } finally {
       setLoading(false);
     }
   };
@@ -153,8 +52,11 @@ export default function Companies() {
     const matchesSearch =
       company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       company.location?.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesIndustry =
-      selectedIndustry === "All" || company.industry === selectedIndustry;
+      selectedIndustry === "All" ||
+      (company.industry && company.industry === selectedIndustry);
+
     return matchesSearch && matchesIndustry;
   });
 
@@ -187,7 +89,7 @@ export default function Companies() {
           </p>
         </div>
 
-        {/* Stats Bar */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 text-center">
             <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-3" />
@@ -202,10 +104,7 @@ export default function Companies() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 text-center">
             <Briefcase className="w-8 h-8 text-purple-600 mx-auto mb-3" />
             <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-              {companies.reduce(
-                (acc, company) => acc + (company.openJobs || 0),
-                0
-              )}
+              {companies.reduce((acc, company) => acc + (company.openJobs || 0), 0)}
             </div>
             <div className="text-gray-600 dark:text-gray-400">Open Positions</div>
           </div>
@@ -219,7 +118,7 @@ export default function Companies() {
           </div>
         </div>
 
-        {/* Search and Filter */}
+        {/* Search + Filter */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-8">
           <div className="grid md:grid-cols-2 gap-4">
             {/* Search */}
@@ -230,7 +129,7 @@ export default function Companies() {
                 placeholder="Search companies or locations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
               />
             </div>
 
@@ -238,7 +137,7 @@ export default function Companies() {
             <select
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+              className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
             >
               {industries.map((industry) => (
                 <option key={industry} value={industry}>
@@ -258,7 +157,6 @@ export default function Companies() {
                 onClick={() => navigate(`/company/${company.id}`)}
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition transform hover:scale-105 cursor-pointer"
               >
-                {/* Company Header */}
                 <div className="h-32 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
                 <div className="p-6 -mt-12">
@@ -275,23 +173,22 @@ export default function Companies() {
                     )}
                   </div>
 
-                  {/* Company Info */}
+                  {/* Name */}
                   <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                     {company.name}
                   </h3>
 
+                  {/* Info */}
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-                      <Building2 className="w-4 h-4" />
-                      <span>{company.industry || "Technology"}</span>
-                    </div>
+
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
                       <MapPin className="w-4 h-4" />
-                      <span>{company.location || "Remote"}</span>
+                      <span>{company.location || "Not provided"}</span>
                     </div>
+
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
                       <Users className="w-4 h-4" />
-                      <span>{company.employeeCount || "50-200"} employees</span>
+                      <span>{company.employeeCount || 0} employees</span>
                     </div>
                   </div>
 
@@ -303,6 +200,7 @@ export default function Companies() {
                         {company.openJobs || 0} Jobs
                       </span>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-purple-600" />
                       <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -319,7 +217,7 @@ export default function Companies() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                        className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
                       >
                         <Globe className="w-4 h-4" />
                         Visit Website
@@ -337,7 +235,7 @@ export default function Companies() {
               No Companies Found
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Try adjusting your search or filter criteria
+              Try adjusting your search or filters
             </p>
           </div>
         )}

@@ -1439,6 +1439,86 @@ app.get("/notifications/unread-count", verifyToken, async (req,res)=>{
   res.json({count: snap.size});
 });
 
+app.get("/companies", async (req, res) => {
+  try {
+    const snapshot = await db.collection("companies").get();
+
+    const companies = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+
+      // Count employees
+      const employeesSnap = await db
+        .collection("companies")
+        .doc(doc.id)
+        .collection("employees")
+        .get();
+
+      // Count open jobs
+      const jobsSnap = await db
+        .collection("jobs")
+        .where("company", "==", data.name)
+        .get();
+
+      companies.push({
+        id: doc.id,
+        name: data.name || "",
+        logo: data.logoUrl || null,
+        industry: data.industry || null,
+        location: data.address || null,
+        employeeCount: employeesSnap.size || 0,
+        openJobs: jobsSnap.size || 0,
+        followers: data.followers || 0,
+        website: data.website || null,
+      });
+    }
+
+    res.json({ companies });
+
+  } catch (err) {
+    console.error("Companies fetch error:", err);
+    res.status(500).json({ error: "Failed to load companies" });
+  }
+});
+
+app.get("/company/:id", async (req, res) => {
+  try {
+    const companyId = req.params.id;
+
+    // Get company main doc
+    const companySnap = await db.collection("companies").doc(companyId).get();
+    if (!companySnap.exists) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    const company = { id: companySnap.id, ...companySnap.data() };
+
+    // Count employees
+    const employeesSnap = await db
+      .collection("companies")
+      .doc(companyId)
+      .collection("employees")
+      .get();
+
+    // Count open jobs
+    const jobsSnap = await db
+      .collection("jobs")
+      .where("company", "==", company.name)
+      .get();
+
+    res.json({
+      company,
+      employeesCount: employeesSnap.size,
+      openJobs: jobsSnap.size,
+    });
+  } catch (err) {
+    console.error("Company fetch error:", err);
+    res.status(500).json({ error: "Server error fetching company" });
+  }
+});
+
+
 app.post("/company/profile/create", verifyToken, loadUserRole, requireCompanyOwner, async (req, res) => {
   try {
     const { companyName, logoUrl, website, description } = req.body;

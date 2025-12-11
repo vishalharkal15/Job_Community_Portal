@@ -19,6 +19,8 @@ import AdminPage from './admin/AdminPage';
 import Notifications from './pages/Notifications'
 import MeetingApprovalPage from './pages/MeetingApprovalPage'
 import CompanyDashboard from './pages/CompanyDashboard'
+import CompanyProfile from './pages/CompanyProfile'
+import Companies from './pages/Companies'
 
 function App() {
   return (
@@ -44,6 +46,8 @@ function App() {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/meeting-approval" element={<MeetingApprovalPage />} />
             <Route path="/company/dashboard" element={<CompanyDashboard />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/company/:companyId" element={<CompanyProfile />} />
           </Routes>
         </main>
         <Footer />

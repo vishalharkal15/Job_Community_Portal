@@ -114,6 +114,13 @@ function Header() {
             </Link>
 
             <Link
+              to="/companies"
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition"
+            >
+              Companies
+            </Link>
+
+            <Link
               to="/services"
               className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition"
             >
@@ -272,6 +279,14 @@ function Header() {
               className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3"
             >
               Blog
+            </Link>
+
+            <Link
+              to="/companies"
+              onClick={() => setMenuOpen(false)}
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3"
+            >
+              Companies
             </Link>
 
             <Link

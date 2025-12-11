@@ -5,10 +5,6 @@ import admin from "firebase-admin";
 import fs from "fs";
 import axios from "axios";
 import nodemailer from "nodemailer";
-import cron from "node-cron";
-import { getFirestore } from "firebase-admin/firestore";
-
-const firestore = getFirestore();
 
 dotenv.config();
 
@@ -67,6 +63,9 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+import { getFirestore } from "firebase-admin/firestore";
+
+const firestore = getFirestore();
 // 🔐 Extract token & verify user from Firebase
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split("Bearer ")[1];
@@ -351,10 +350,26 @@ app.post("/login", async(req, res) => {
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
+    const userRef = db.collection("users").doc(uid);
     const userDoc = await db.collection("users").doc(uid).get();
 
-    if(!userDoc.exists)
-      return res.status(404).json({ error: "User profile not found"});
+    if (!userDoc.exists) {
+      const newUser = {
+        name: decoded.name || "",
+        email: decoded.email || "",
+        role: "job-seeker", // default or change if needed
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await userRef.set(newUser);
+
+      return res.json({
+        message: "Google login successful - user profile created",
+        firebaseUid: uid,
+        profile: newUser,
+      });
+    }
 
     const userData = userDoc.data();
 

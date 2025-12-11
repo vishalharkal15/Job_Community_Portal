@@ -341,23 +341,43 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.post("/login", async(req, res) => {
-  const token = req.headers.authorization?.split("Bearer ")[1]
+app.post("/login", async (req, res) => {
+  const token = req.headers.authorization?.split("Bearer ")[1];
 
   if (!token)
-    return res.status(401).json({ error: "Unauthorized - No token provided"});
-  try{
+    return res.status(401).json({ error: "Unauthorized - No token provided" });
+
+  try {
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
+    const email = decoded.email;
 
     const userRef = db.collection("users").doc(uid);
-    const userDoc = await db.collection("users").doc(uid).get();
+    const userDoc = await userRef.get();
 
+    // 1️⃣ If UID does not exist in Firestore → check email instead
     if (!userDoc.exists) {
+      const emailSnap = await db
+        .collection("users")
+        .where("email", "==", email)
+        .limit(1)
+        .get();
+
+      // 2️⃣ If Firestore user with same email already exists → use that
+      if (!emailSnap.empty) {
+        const existing = emailSnap.docs[0];
+        return res.json({
+          message: "Login Successful (email matched existing profile)",
+          firebaseUid: existing.id,
+          profile: existing.data(),
+        });
+      }
+
+      // 3️⃣ Otherwise create new Firestore user
       const newUser = {
         name: decoded.name || "",
-        email: decoded.email || "",
-        role: "job-seeker", // default or change if needed
+        email: email,
+        role: "job-seeker",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -365,24 +385,25 @@ app.post("/login", async(req, res) => {
       await userRef.set(newUser);
 
       return res.json({
-        message: "Google login successful - user profile created",
+        message: "Google login successful - new profile created",
         firebaseUid: uid,
         profile: newUser,
       });
     }
 
-    const userData = userDoc.data();
-
-    res.json({
+    // 👍 Normal login path when UID already exists
+    return res.json({
       message: "Login Successful",
       firebaseUid: uid,
-      profile: userData,
+      profile: userDoc.data(),
     });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(401).json({ error: "Invalid or expired token "});
+
+  } catch (err) {
+    console.error("Login error:", err);
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 });
+
 
 app.get("/user/profile", verifyToken, loadUserRole, async (req, res) => {
   try {

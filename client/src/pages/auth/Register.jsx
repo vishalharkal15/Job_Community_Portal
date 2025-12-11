@@ -61,8 +61,9 @@ function Register() {
 
     if (!formData.gender) newErrors.gender = "Gender is required";
 
-    if (!formData.companyName.trim())
-      newErrors.companyName = "Company name required";
+    if (formData.role === "company" && !formData.companyName.trim()) {
+      newErrors.companyName = "Company name is required for company owners.";
+    }
 
     if (!formData.role) newErrors.role = "Select a role";
 
@@ -127,7 +128,7 @@ function Register() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSuccessMessage(`Welcome ${formData.name}`);
+      setSuccessMessage(`Welcome ${formData.name}.\nIf you registered a new company, it is now pending admin approval.`);
       setTimeout(() => navigate("/"), 2000);
     } catch (error) {
       setErrors({
@@ -250,6 +251,11 @@ function Register() {
               <p className="text-red-500 text-sm">{errors.companyName}</p>
             )}
           </div>
+          {formData.companyName.trim() !== "" && (
+            <p className="text-yellow-600 text-sm mt-1">
+              If this is a new company, it will require admin approval.
+            </p>
+          )}
 
           {/* ROLE */}
           <div>

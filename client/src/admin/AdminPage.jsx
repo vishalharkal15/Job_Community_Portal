@@ -12,6 +12,7 @@ export default function AdminPage() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState("");
+  const [companies, setCompanies] = useState([]);
 
   const [users, setUsers] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -28,7 +29,7 @@ export default function AdminPage() {
 
   const fetchAdminData = async (token) => {
     try {
-      const [usersRes, jobsRes, blogsRes, meetingsRes] = await Promise.all([
+      const [usersRes, jobsRes, blogsRes, meetingsRes, companiesRes ] = await Promise.all([
         axios.get("http://localhost:5000/admin/users", {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -41,12 +42,16 @@ export default function AdminPage() {
         axios.get("http://localhost:5000/admin/meetings", {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        axios.get("http://localhost:5000/admin/companies/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       setUsers(usersRes.data.users || []);
       setJobs(jobsRes.data.jobs || []);
       setBlogs(blogsRes.data.blogs || []);
       setMeetings(meetingsRes.data.meetings || []);
+      setCompanies(companiesRes.data.companies || []);
     } catch (err) {
       console.error(err);
       setError("Unable to load admin dashboard data.");
@@ -112,6 +117,36 @@ export default function AdminPage() {
     } catch (err) {
       console.error(err);
       setError("Failed to update role.");
+    }
+  };
+
+  const approveCompany = async (company) => {
+    const token = await auth.currentUser.getIdToken();
+    try {
+      await axios.put(
+        `http://localhost:5000/admin/companies/${company.id}/approve`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRefresh(p => p + 1);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to approve company.");
+    }
+  };
+
+  const rejectCompany = async (company) => {
+    const token = await auth.currentUser.getIdToken();
+    try {
+      await axios.put(
+        `http://localhost:5000/admin/companies/${company.id}/reject`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRefresh(p => p + 1);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to reject company.");
     }
   };
 
@@ -392,6 +427,38 @@ export default function AdminPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                     {blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : 'N/A'}
                   </p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Pending Companies Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+              Pending Companies ({companies.length})
+            </h2>
+
+            <div className="space-y-3 max-h-96 overflow-auto">
+              {companies.map((c) => (
+                <div key={c.id} className="border border-gray-200 dark:border-gray-700 p-3 rounded-lg">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{c.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Owner ID: {c.owners?.[0]}</p>
+
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => approveCompany(c)}
+                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm"
+                    >
+                      Approve
+                    </button>
+
+                    <button
+                      onClick={() => rejectCompany(c)}
+                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

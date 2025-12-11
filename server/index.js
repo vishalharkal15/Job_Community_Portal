@@ -254,35 +254,31 @@ app.post("/register", async (req, res) => {
         .get();
 
       if (!companySnap.empty) {
-        // Existing company
         const doc = companySnap.docs[0];
-
-        companyId = doc.id;
         const companyData = doc.data();
+        companyId = doc.id;
 
-        // If owner list missing -> initialize it & add this uid
-        if (!companyData.owners || !Array.isArray(companyData.owners)) {
-          await doc.ref.update({
-            owners: [uid],
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          companyRole = "owner";
-        } 
-        // If owners list exists but does NOT contain this uid -> employee
-        else if (!companyData.owners.includes(uid)) {
-          companyRole = "employee";
-        } 
-        // If already owner
-        else {
-          companyRole = "owner";
+        if (companyData.status === "rejected") {
+            // treat like new request → create new pending
+            return res.status(400).json({
+              error: "This company was previously rejected. Create a new request with a different name."
+            });
         }
 
+        if (companyData.status === "pending") {
+            companyRole = "employee"; // temporary
+        }
+
+        if (companyData.status === "accepted") {
+            // your existing logic
+        }
       } else {
         // Create new company
         const newCompanyRef = await db.collection("companies").add({
           name: companyName,
           logoUrl: null,
-          owners: [uid], // store owner list
+          owners: [uid],
+          status: "pending",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -601,6 +597,98 @@ app.post("/meeting-request", verifyToken, loadUserRole, async (req, res) => {
   } catch (err) {
     console.error("Meeting request error:", err);
     return res.status(500).json({ error: "Failed to submit meeting request" });
+  }
+});
+
+app.get("/admin/companies/pending", verifyToken, loadUserRole, requireAdmin, async(req, res) => {
+  const snap = await db.collection("companies")
+      .where("status", "==", "pending")
+      .get();
+
+  return res.json({
+    companies: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  });
+});
+
+app.put("/admin/companies/:id/approve", verifyToken, loadUserRole, requireAdmin, async(req, res) => {
+  const companyId = req.params.id;
+
+  const ref = db.collection("companies").doc(companyId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: "Company not found" });
+
+  await ref.update({
+    status: "accepted",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return res.json({ message: "Company approved" });
+});
+
+app.put("/admin/companies/:id/reject", verifyToken, loadUserRole, requireAdmin, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+
+    const companyRef = db.collection("companies").doc(companyId);
+    const snap = await companyRef.get();
+
+    if (!snap.exists)
+      return res.status(404).json({ error: "Company not found" });
+
+    const companyData = snap.data();
+    const companyName = companyData.name;
+
+    // 1. Fetch all users who belong to this company
+    const usersSnap = await db.collection("users")
+      .where("companyId", "==", companyId)
+      .get();
+
+    const batch = db.batch();
+
+    // 2. Detach users and notify each
+    for (const doc of usersSnap.docs) {
+      const userId = doc.id;
+
+      batch.update(doc.ref, {
+        companyId: null,
+        companyName: null,
+        companyRole: null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Send notification to user
+      await createNotification(
+        userId,
+        "Company Rejected",
+        `Your company '${companyName}' was rejected by admin. You are now marked as not associated with any company.`,
+        "company-rejected",
+        companyId,
+        "/profile"
+      );
+    }
+
+    // 3. Delete company document
+    batch.delete(companyRef);
+
+    await batch.commit();
+
+    // 4. Notify admin who performed the action
+    await createNotification(
+      req.uid,
+      "Company Rejected Successfully",
+      `You rejected the company '${companyName}'. All associated users were detached.`,
+      "company-rejected-admin",
+      companyId,
+      "/admin/companies"
+    );
+
+    return res.json({
+      message: "Company rejected, deleted, and all users were notified & detached successfully."
+    });
+
+  } catch (error) {
+    console.error("Company reject error:", error);
+    return res.status(500).json({ error: "Failed to reject company" });
   }
 });
 

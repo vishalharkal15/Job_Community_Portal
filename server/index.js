@@ -1486,38 +1486,141 @@ app.get("/company/:id", async (req, res) => {
   try {
     const companyId = req.params.id;
 
-    // Get company main doc
-    const companySnap = await db.collection("companies").doc(companyId).get();
+    // 1️⃣ Fetch company
+    const companyRef = db.collection("companies").doc(companyId);
+    const companySnap = await companyRef.get();
+
     if (!companySnap.exists) {
       return res.status(404).json({ error: "Company not found" });
     }
 
     const company = { id: companySnap.id, ...companySnap.data() };
 
-    // Count employees
-    const employeesSnap = await db
-      .collection("companies")
-      .doc(companyId)
-      .collection("employees")
-      .get();
+    // 2️⃣ Increment profile views safely
+    await companyRef.update({
+      profileViews: admin.firestore.FieldValue.increment(1)
+    });
 
-    // Count open jobs
+    // 3️⃣ Fetch employees
+    const employeesSnap = await companyRef.collection("employees").get();
+
+    const employees = employeesSnap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
+
+    // 4️⃣ Fetch open jobs
     const jobsSnap = await db
       .collection("jobs")
       .where("company", "==", company.name)
       .get();
 
+    const jobs = jobsSnap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
+
+    // 5️⃣ Build full response
     res.json({
-      company,
-      employeesCount: employeesSnap.size,
-      openJobs: jobsSnap.size,
+      company: {
+        id: company.id,
+        name: company.name || "",
+        logoUrl: company.logoUrl || null,
+        owners: company.owners || [],
+        status: company.status || "pending",
+        address: company.address || null,
+        description: company.description || "",
+        website: company.website || null,
+        profileViews: (company.profileViews || 0) + 1, // because we incremented it
+        createdAt: company.createdAt || null,
+        updatedAt: company.updatedAt || null,
+      },
+      employeesCount: employees.length,
+      openJobs: jobs.length,
+      employees,
+      jobs,
     });
+
   } catch (err) {
     console.error("Company fetch error:", err);
     res.status(500).json({ error: "Server error fetching company" });
   }
 });
 
+app.get("/company/:id/analytics", async (req, res) => {
+  try {
+    const companyId = req.params.id;
+
+    // 1️⃣ Fetch company
+    const companySnap = await db.collection("companies").doc(companyId).get();
+    if (!companySnap.exists) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+    const company = companySnap.data();
+
+    // 2️⃣ Employees
+    const employeesSnap = await db
+      .collection("companies")
+      .doc(companyId)
+      .collection("employees")
+      .get();
+
+    const employees = employeesSnap.docs.map((d) => d.data());
+    const employeeCount = employees.length;
+
+    // Diversity metrics
+    const gender = { male: 0, female: 0, other: 0 };
+    const experience = { fresher: 0, mid: 0, senior: 0 };
+    const remote = { onsite: 0, hybrid: 0, remote: 0 };
+
+    employees.forEach((e) => {
+      gender[e.gender] = (gender[e.gender] || 0) + 1;
+      experience[e.experience?.level] =
+        (experience[e.experience?.level] || 0) + 1;
+      remote[e.workMode] = (remote[e.workMode] || 0) + 1;
+    });
+
+    // 3️⃣ Jobs and views
+    const jobsSnap = await db
+      .collection("jobs")
+      .where("company", "==", company.name)
+      .get();
+
+    const jobs = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    const totalJobViews = jobs.reduce((acc, j) => acc + (j.views || 0), 0);
+    const totalApplications = jobs.reduce(
+      (acc, j) => acc + (j.appliedBy?.length || 0),
+      0
+    );
+
+    // 4️⃣ Top performing jobs
+    const topPerformingJobs = jobs
+      .map((j) => ({
+        title: j.title,
+        views: j.views || 0,
+        applications: j.appliedBy?.length || 0,
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 4);
+
+    // 5️⃣ Monthly hiring trends → (fake values for now)
+    const monthlyHiring = [2, 4, 1, 3, 5, 2, 4, 6, 3, 5, 2, 4];
+
+    res.json({
+      profileViews: company.profileViews || 0,
+      jobViews: totalJobViews,
+      totalApplications,
+      topPerformingJobs,
+      employeeGrowth: [2, 3, 6, 8, 11, employeeCount],
+      monthlyHiring,
+      diversityMetrics: { gender, experience, remote },
+    });
+  } catch (err) {
+    console.error("Analytics fetch error:", err);
+    return res.status(500).json({ error: "Failed to load analytics" });
+  }
+});
 
 app.post("/company/profile/create", verifyToken, loadUserRole, requireCompanyOwner, async (req, res) => {
   try {

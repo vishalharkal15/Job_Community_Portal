@@ -27,6 +27,13 @@ export default function JobDetails() {
     loadJob();
   }, []);
 
+  useEffect(() => {
+  if (!id) return;
+
+  axios.put(`${import.meta.env.VITE_API_URL}/jobs/${id}/view`)
+    .catch(err => console.error("Failed to increment views:", err));
+}, [id]);
+
   // Load job from Firestore
   async function loadJob() {
     const snap = await getDoc(doc(db, "jobs", id));

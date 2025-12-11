@@ -31,7 +31,7 @@ export default function BlogList() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Blogs</h1>
 
-        {userRole != "job-seeker" && (
+        {(userRole == "recruiter" || userRole == "company" || userRole == "admin" || userRole == "super-admin" )&& (
           <Link
             to="/create-blog"
             className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"

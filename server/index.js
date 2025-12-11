@@ -821,6 +821,7 @@ app.post("/jobs/create", verifyToken, loadUserRole, async (req, res) => {
       category: category || null,
       postedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdBy: uid,
+      views: 0,
       savedBy: [],
       appliedBy: [],
     };
@@ -832,6 +833,52 @@ app.post("/jobs/create", verifyToken, loadUserRole, async (req, res) => {
   } catch (err) {
     console.error("Job creation error:", err);
     return res.status(500).json({ error: "Failed to create job" });
+  }
+});
+
+app.put("/jobs/:id/view", async (req, res) => {
+  try {
+    const jobId = req.params.id;
+
+    const jobRef = db.collection("jobs").doc(jobId);
+    const snap = await jobRef.get();
+
+    if (!snap.exists)
+      return res.status(404).json({ error: "Job not found" });
+
+    // Increment views safely
+    await jobRef.update({
+      views: admin.firestore.FieldValue.increment(1)
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Job view error:", err);
+    return res.status(500).json({ error: "Failed to increment view count" });
+  }
+});
+
+app.get("/company/job-views/total", verifyToken, loadUserRole, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+
+    if (!companyId)
+      return res.json({ totalViews: 0 });
+
+    const jobsSnap = await db
+      .collection("jobs")
+      .where("company", "==", req.user.companyName)
+      .get();
+
+    let totalViews = 0;
+    jobsSnap.docs.forEach(doc => {
+      totalViews += doc.data().views || 0;
+    });
+
+    return res.json({ totalViews });
+  } catch (err) {
+    console.error("Job views fetch error:", err);
+    return res.status(500).json({ error: "Failed to load job views" });
   }
 });
 

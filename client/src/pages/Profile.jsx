@@ -4,6 +4,7 @@ import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebaseConfig'
+import { formatBlogTime } from '../utils/date'
 
 function Profile() {
   const { currentUser, userRole, signOut } = useAuth()
@@ -528,11 +529,7 @@ function Profile() {
                 <div>
                   <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">Member Since</p>
                   <p className="text-gray-900 dark:text-gray-100">
-                    {userData?.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    }) : 'Recently joined'}
+                    {userData?.createdAt ? formatBlogTime(userData.createdAt) : 'Recently joined'}
                   </p>
                 </div>
               </div>

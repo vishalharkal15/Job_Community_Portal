@@ -78,7 +78,7 @@ router.get("/company/:id", async (req, res) => {
     // 4️⃣ Fetch open jobs
     const jobsSnap = await db
       .collection("jobs")
-      .where("company", "==", company.name)
+      .where("companyId", "==", doc.id)
       .get();
 
     const jobs = jobsSnap.docs.map((d) => ({
@@ -125,7 +125,7 @@ router.get("/company/:id/analytics", async (req, res) => {
 
     const jobsSnap = await db
       .collection("jobs")
-      .where("company", "==", company.name)
+      .where("companyId", "==", companyId)
       .get();
 
     let jobViews = 0;

@@ -160,18 +160,34 @@ router.get("/blogs/:id/comments", async (req, res) => {
   });
 });
 
-router.post("/blogs/:id/comments", verifyToken, async (req, res) => {
-  await db
-    .collection("blogs")
-    .doc(req.params.id)
-    .collection("comments")
-    .add({
-      text: req.body.text,
-      authorId: req.uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
 
-  res.json({ success: true });
+router.post("/blogs/:id/comments", verifyToken, async (req, res) => {
+  try {
+    const userSnap = await db.collection("users").doc(req.uid).get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userSnap.data();
+
+    await db
+      .collection("blogs")
+      .doc(req.params.id)
+      .collection("comments")
+      .add({
+        text: req.body.text,
+        userId: req.uid,
+        authorName: user.name || "User",
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("Post comment error:", err);
+    res.status(500).json({ error: "Failed to post comment" });
+  }
 });
 
 export default router;

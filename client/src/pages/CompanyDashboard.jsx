@@ -7,13 +7,9 @@ import {
   BarChart3, Users, Briefcase, Calendar, Settings, Bell, LogOut, Home
 } from "lucide-react";
 import CompanyAnalytics from "../components/Company/CompanyAnalytics";
-import CompanyFollowers from "../components/Company/CompanyFollowers";
-import CareerPageBuilder from "../components/Company/CareerPageBuilder";
 import TeamRoles from "../components/Company/TeamRoles";
-import InterviewManagement from "../components/Company/InterviewManagement";
 import CandidatePipeline from "../components/Company/CandidatePipeline";
 import CompanyNotifications from "../components/Company/CompanyNotifications";
-import ExitManagement from "../components/Company/ExitManagement";
 
 export default function CompanyDashboard() {
   const navigate = useNavigate();
@@ -58,33 +54,21 @@ export default function CompanyDashboard() {
 
   const menuItems = [
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "followers", label: "Talent Pool", icon: Users },
-    { id: "career-page", label: "Career Page", icon: Home },
     { id: "team-roles", label: "Team & Roles", icon: Settings },
-    { id: "interviews", label: "Interviews", icon: Calendar },
     { id: "pipeline", label: "Candidate Pipeline", icon: Briefcase },
     { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "exit-mgmt", label: "Exit Management", icon: LogOut },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
       case "analytics":
         return <CompanyAnalytics companyProfile={userProfile} />;
-      case "followers":
-        return <CompanyFollowers companyProfile={userProfile} />;
-      case "career-page":
-        return <CareerPageBuilder companyProfile={userProfile} />;
       case "team-roles":
         return <TeamRoles companyProfile={userProfile} />;
-      case "interviews":
-        return <InterviewManagement companyProfile={userProfile} />;
       case "pipeline":
         return <CandidatePipeline companyProfile={userProfile} />;
       case "notifications":
         return <CompanyNotifications companyProfile={userProfile} />;
-      case "exit-mgmt":
-        return <ExitManagement companyProfile={userProfile} />;
       default:
         return <CompanyAnalytics companyProfile={userProfile} />;
     }

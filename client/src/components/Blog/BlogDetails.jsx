@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 import BlogActions from "./BlogActions";
@@ -54,8 +54,24 @@ export default function BlogDetails() {
   )}
 </div>
 
-      <p className="text-gray-600 mt-2 mb-8">
-        By {blog.authorName} • {timeAgo(blog.createdAt)}
+      <p className="text-gray-600 mb-8 flex flex-wrap items-center gap-2">
+        <span>By</span>
+
+        {blog.authorId ? (
+          <Link
+            to={`/users/${blog.authorId}`}
+            className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+          >
+            {blog.authorName || "Anonymous"}
+          </Link>
+        ) : (
+          <span className="font-semibold">
+            {blog.authorName || "Anonymous"}
+          </span>
+        )}
+
+        <span>•</span>
+        <span>{timeAgo(blog.createdAt)}</span>
       </p>
 
       <p className="text-lg mb-10 whitespace-pre-wrap">{blog.content}</p>

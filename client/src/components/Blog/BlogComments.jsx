@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
+import { Link } from "react-router-dom";
 
 export default function BlogComments({ blogId }) {
   const { currentUser } = useAuth();
@@ -44,9 +45,15 @@ export default function BlogComments({ blogId }) {
       ) : (
         <div className="space-y-4">
           {comments.map((c) => (
-            <div key={c.id} className="p-3 bg-gray-100 rounded">
-              <p className="font-semibold">{c.authorName || "User"}</p>
-              <p>{c.text}</p>
+            <div key={c.id} className="p-4 bg-gray-100 rounded-lg">
+              <Link
+                to={`/users/${c.userId}`}
+                className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline transition"
+              >
+                {c.authorName || "User"}
+              </Link>
+
+              <p className="mt-1 text-gray-800">{c.text}</p>
             </div>
           ))}
         </div>
@@ -62,7 +69,7 @@ export default function BlogComments({ blogId }) {
           />
           <button
             onClick={postComment}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
           >
             Post
           </button>

@@ -32,9 +32,12 @@ export default function BlogDetails() {
     <div className="max-w-3xl mx-auto p-6">
       {blog.image && (
         <img
-          src={blog.image}
+          src={blog.image || "/placeholder.jpg"}
           alt="cover"
-          className="w-full h-64 object-cover rounded mb-4"
+          className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-110"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder.jpg";
+          }}
         />
       )}
 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">

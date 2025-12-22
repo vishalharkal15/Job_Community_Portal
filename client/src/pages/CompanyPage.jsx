@@ -218,13 +218,6 @@ export default function CompanyPage() {
               </div>
             )}
           </div>
-
-          {/* Metadata */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow text-sm text-gray-500 dark:text-gray-400">
-            <p><b className="text-gray-700 dark:text-gray-300">Status:</b> {data.status}</p>
-            <p><b className="text-gray-700 dark:text-gray-300">Created At:</b> {data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : "N/A"}</p>
-            <p><b className="text-gray-700 dark:text-gray-300">Updated At:</b> {data.updatedAt?.toDate ? data.updatedAt.toDate().toLocaleString() : "N/A"}</p>
-          </div>
         </div>
 
         {/* Right Column - Sidebar */}

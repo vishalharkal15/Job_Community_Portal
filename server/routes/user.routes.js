@@ -2,6 +2,7 @@ import express from "express";
 import { db, admin } from "../config/firebase.js";
 import { verifyToken } from "../middleware/auth.js";
 import { loadUserRole } from "../middleware/roles.js";
+import { getPublicUserProfile } from "../controllers/user.controller.js";
 
 const router = express.Router();
 
@@ -102,5 +103,7 @@ router.get("/me/company", verifyToken, loadUserRole, async (req, res) => {
 
   res.json(snap.data());
 });
+
+router.get("/users/:userId/profile", getPublicUserProfile);
 
 export default router;

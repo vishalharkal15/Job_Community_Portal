@@ -105,9 +105,9 @@ export default function Jobs() {
 
         {/* Search and Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-8">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -119,7 +119,7 @@ export default function Jobs() {
             </div>
 
             {/* Location Filter */}
-            <div className="relative">
+            <div className="relative flex-1">
               <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -134,7 +134,7 @@ export default function Jobs() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+              className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 md:w-48"
             >
               {jobTypes.map((type) => (
                 <option key={type} value={type}>
@@ -142,20 +142,18 @@ export default function Jobs() {
                 </option>
               ))}
             </select>
-          </div>
 
-          {/* Create Job Button */}
-          {(userRole === "recruiter" || userRole === "company") && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {/* Create Job Button */}
+            {(userRole === "recruiter" || userRole === "company") && (
               <Link
                 to="/create-job"
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold whitespace-nowrap"
               >
                 <Plus className="w-5 h-5" />
                 Post a Job
               </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Jobs Grid */}

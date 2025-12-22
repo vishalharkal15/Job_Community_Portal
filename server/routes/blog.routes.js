@@ -37,8 +37,9 @@ router.post("/blogs", async (req, res) => {
 
     const user = userDoc.data();
 
-    if (user.role !== "job-seeker")
-      return res.status(403).json({ error: "Only job-seekers can create blogs" });
+    if (!["company", "recruiter", "admin", "super-admin"].includes(user.role)) {
+      return res.status(403).json({ error: "You do not have access" });
+    }
 
     const { title, content } = req.body;
 

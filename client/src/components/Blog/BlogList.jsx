@@ -94,7 +94,7 @@ export default function BlogList() {
             <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
               {canCreateBlog ? "Writer" : "Reader"}
             </div>
-            <div className="text-gray-600 dark:text-gray-400">Your Role</div>
+            <div className="text-gray-600 dark:text-gray-400">You Are</div>
           </div>
         </div>
 

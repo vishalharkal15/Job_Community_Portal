@@ -11,9 +11,12 @@ export default function BlogCard({ blog }) {
       {blog.image && (
         <div className="relative overflow-hidden">
           <img
-            src={blog.image}
+            src={blog.image || "/placeholder.jpg"}
             alt="cover"
             className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-110"
+            onError={(e) => {
+              e.currentTarget.src = "/placeholder.jpg";
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>

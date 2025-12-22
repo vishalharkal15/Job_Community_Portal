@@ -2,8 +2,8 @@ import express from "express";
 import nodemailer from "nodemailer";
 import axios from "axios";
 import { db, admin } from "../config/firebase.js";
-import { verifyToken } from "../middlewares/auth.js";
-import { loadUserRole, requireAdmin } from "../middlewares/roles.js";
+import { verifyToken } from "../middleware/auth.js";
+import { loadUserRole, requireAdmin } from "../middleware/roles.js";
 import { generateZoomToken } from "../utils/zoom.js";
 import { createNotification } from "../utils/notifications.js";
 

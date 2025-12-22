@@ -1,7 +1,7 @@
 import express from "express";
 import { db, admin } from "../config/firebase.js";
-import { verifyToken, verifyTokenOptional } from "../middlewares/auth.js";
-import { loadUserRole } from "../middlewares/roles.js";
+import { verifyToken, verifyTokenOptional } from "../middleware/auth.js";
+import { loadUserRole } from "../middleware/roles.js";
 import { createNotification } from "../utils/notifications.js";
 
 const router = express.Router();
@@ -61,41 +61,85 @@ router.get("/jobs/:id", verifyTokenOptional, async (req, res) => {
 });
 
 router.post("/jobs/create", verifyToken, loadUserRole, async (req, res) => {
-  try {
-    const uid = req.uid;
+    try {
+      const uid = req.uid;
+      const user = req.user;
 
-    if (req.user.role !== "recruiter" && req.user.role !== "company") {
-      return res.status(403).json({ error: "Not allowed to create jobs" });
+      // 🔐 Role check
+      if (!["recruiter", "company"].includes(user.role)) {
+        return res.status(403).json({
+          error: "Only recruiters or company users can create jobs",
+        });
+      }
+
+      // 🔐 Company binding check
+      if (!user.companyId || !user.companyName) {
+        return res.status(400).json({
+          error: "You must belong to a company to create jobs",
+        });
+      }
+
+      // ❌ NEVER trust frontend for company data
+      const {
+        title,
+        location,
+        minSalary,
+        maxSalary,
+        type,
+        workMode,
+        description,
+        category,
+      } = req.body;
+
+      if (!title || !location || !type || !workMode || !description) {
+        return res.status(400).json({
+          error: "Missing required fields",
+        });
+      }
+
+      const newJob = {
+        // 🔹 Job data
+        title: title.trim(),
+        location: location.trim(),
+        description: description.trim(),
+        category: category || null,
+        type,
+        workMode,
+        minSalary: minSalary || null,
+        maxSalary: maxSalary || null,
+
+        // 🔒 COMPANY DATA (IMMUTABLE)
+        companyId: user.companyId,
+        companyName: user.companyName,
+
+        // 🔐 Ownership
+        createdBy: uid,
+
+        // 📊 Metrics
+        views: 0,
+        savedBy: [],
+        appliedBy: [],
+
+        // 🕒 Timestamps
+        postedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const jobRef = await db.collection("jobs").add(newJob);
+
+      return res.status(201).json({
+        success: true,
+        jobId: jobRef.id,
+      });
+
+    } catch (err) {
+      console.error("Job creation error:", err);
+      return res.status(500).json({
+        error: "Failed to create job",
+      });
     }
-
-    const { title, company, location, minSalary, maxSalary, type, workMode, description, category } = req.body;
-
-    const newJob = {
-      title,
-      company,
-      location,
-      minSalary,
-      maxSalary,
-      type,
-      workMode,
-      description,
-      category: category || null,
-      postedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: uid,
-      views: 0,
-      savedBy: [],
-      appliedBy: [],
-    };
-
-    const jobRef = await db.collection("jobs").add(newJob);
-
-    return res.json({ success: true, id: jobRef.id });
-
-  } catch (err) {
-    console.error("Job creation error:", err);
-    return res.status(500).json({ error: "Failed to create job" });
   }
-});
+);
 
 router.put("/jobs/:id/edit", verifyToken, loadUserRole, async (req, res) => {
   try {
@@ -201,13 +245,54 @@ router.delete("/jobs/:id", verifyToken, loadUserRole, async (req, res) => {
 });
 
 router.put("/jobs/:id/apply", verifyToken, async (req, res) => {
-  const jobRef = db.collection("jobs").doc(req.params.id);
+  try {
+    const jobRef = db.collection("jobs").doc(req.params.id);
+    const jobSnap = await jobRef.get();
 
-  await jobRef.update({
-    appliedBy: admin.firestore.FieldValue.arrayUnion(req.uid)
-  });
+    if (!jobSnap.exists) {
+      return res.status(404).json({ error: "Job not found" });
+    }
 
-  res.json({ success: true });
+    const job = jobSnap.data();
+
+    // 🔥 FETCH COMPANY ID PROPERLY
+    const companySnap = await db
+      .collection("companies")
+      .where("name", "==", job.company)
+      .limit(1)
+      .get();
+
+    if (companySnap.empty) {
+      return res.status(400).json({ error: "Company not found" });
+    }
+
+    const companyId = companySnap.docs[0].id;
+
+    // 🔥 CREATE APPLICATION
+    await db.collection("applications").add({
+      applicantId: req.uid,
+      applicantName: req.user.name,
+      applicantEmail: req.user.email,
+      jobId: req.params.id,
+      jobTitle: job.title,
+      companyId,                 // ✅ FIX
+      companyName: job.company,
+      resumeUrl: req.body.resumeUrl || null,
+      status: "Applied",
+      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // (optional helper field)
+    await jobRef.update({
+      appliedBy: admin.firestore.FieldValue.arrayUnion(req.uid),
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Apply job error:", err);
+    res.status(500).json({ error: "Failed to apply job" });
+  }
 });
 
 router.put("/jobs/:id/save", verifyToken, async (req, res) => {

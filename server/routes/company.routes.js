@@ -1,7 +1,7 @@
 import express from "express";
 import { db, admin } from "../config/firebase.js";
-import { verifyToken } from "../middlewares/auth.js";
-import { loadUserRole, requireCompanyOwner } from "../middlewares/roles.js";
+import { verifyToken } from "../middleware/auth.js";
+import { loadUserRole, requireCompanyOwner } from "../middleware/roles.js";
 
 const router = express.Router();
 
@@ -117,74 +117,66 @@ router.get("/company/:id/analytics", async (req, res) => {
   try {
     const companyId = req.params.id;
 
-    // 1️⃣ Fetch company
     const companySnap = await db.collection("companies").doc(companyId).get();
     if (!companySnap.exists) {
       return res.status(404).json({ error: "Company not found" });
     }
     const company = companySnap.data();
 
-    // 2️⃣ Employees
-    const employeesSnap = await db
-      .collection("companies")
-      .doc(companyId)
-      .collection("employees")
-      .get();
-
-    const employees = employeesSnap.docs.map((d) => d.data());
-    const employeeCount = employees.length;
-
-    // Diversity metrics
-    const gender = { male: 0, female: 0, other: 0 };
-    const experience = { fresher: 0, mid: 0, senior: 0 };
-    const remote = { onsite: 0, hybrid: 0, remote: 0 };
-
-    employees.forEach((e) => {
-      gender[e.gender] = (gender[e.gender] || 0) + 1;
-      experience[e.experience?.level] =
-        (experience[e.experience?.level] || 0) + 1;
-      remote[e.workMode] = (remote[e.workMode] || 0) + 1;
-    });
-
-    // 3️⃣ Jobs and views
     const jobsSnap = await db
       .collection("jobs")
       .where("company", "==", company.name)
       .get();
 
-    const jobs = jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let jobViews = 0;
+    const topPerformingJobs = [];
 
-    const totalJobViews = jobs.reduce((acc, j) => acc + (j.views || 0), 0);
-    const totalApplications = jobs.reduce(
-      (acc, j) => acc + (j.appliedBy?.length || 0),
-      0
-    );
+    jobsSnap.docs.forEach(doc => {
+      const job = doc.data();
+      jobViews += job.views || 0;
 
-    // 4️⃣ Top performing jobs
-    const topPerformingJobs = jobs
-      .map((j) => ({
-        title: j.title,
-        views: j.views || 0,
-        applications: j.appliedBy?.length || 0,
-      }))
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 4);
+      topPerformingJobs.push({
+        title: job.title,
+        views: job.views || 0,
+        applications: job.appliedBy?.length || 0,
+      });
+    });
 
-    // 5️⃣ Monthly hiring trends → (fake values for now)
-    const monthlyHiring = [2, 4, 1, 3, 5, 2, 4, 6, 3, 5, 2, 4];
+    topPerformingJobs.sort((a, b) => b.views - a.views);
+
+    const appsSnap = await db
+      .collection("applications")
+      .where("companyId", "==", companyId)
+      .get();
+
+    const usersSnap = await db
+      .collection("users")
+      .where("companyId", "==", companyId)
+      .get();
+
+    const diversityMetrics = {
+      gender: { Male: 0, Female: 0, Other: 0 },
+      experience: { Fresher: 0, "Mid-Level": 0, Senior: 0 },
+      remote: { Onsite: 0, Hybrid: 0, Remote: 0 },
+    };
+
+    usersSnap.docs.forEach(doc => {
+      const u = doc.data();
+      if (u.gender) diversityMetrics.gender[u.gender] = (diversityMetrics.gender[u.gender] || 0) + 1;
+      if (u.experienceLevel) diversityMetrics.experience[u.experienceLevel] = (diversityMetrics.experience[u.experienceLevel] || 0) + 1;
+      if (u.workMode) diversityMetrics.remote[u.workMode] = (diversityMetrics.remote[u.workMode] || 0) + 1;
+    });
 
     res.json({
       profileViews: company.profileViews || 0,
-      jobViews: totalJobViews,
-      totalApplications,
-      topPerformingJobs,
-      employeeGrowth: [2, 3, 6, 8, 11, employeeCount],
-      monthlyHiring,
-      diversityMetrics: { gender, experience, remote },
+      jobViews,
+      totalApplications: appsSnap.size,
+      topPerformingJobs: topPerformingJobs.slice(0, 5),
+      diversityMetrics,
     });
   } catch (err) {
-    console.error("Analytics fetch error:", err);
-    return res.status(500).json({ error: "Failed to load analytics" });
+    console.error("Analytics error:", err);
+    res.status(500).json({ error: "Failed to load analytics" });
   }
 });
 
@@ -408,6 +400,51 @@ router.put("/company/update", async (req, res) => {
   } catch (error) {
     console.error("Company update failed:", error);
     res.status(500).json({ error: "Server error updating company" });
+  }
+});
+
+router.get("/company/:id/employee-growth", async (req, res) => {
+  try {
+    const companyId = req.params.id;
+
+    const employeesSnap = await db
+      .collection("companies")
+      .doc(companyId)
+      .collection("employees")
+      .get();
+
+    const now = new Date();
+    const months = [];
+    const counts = [];
+
+    // Build last 6 months labels
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.toLocaleString("default", { month: "short" }));
+      counts.push(0);
+    }
+
+    employeesSnap.docs.forEach(doc => {
+      const joinedAt = doc.data().joinedAt?.toDate?.();
+      if (!joinedAt) return;
+
+      const diffMonths =
+        (now.getFullYear() - joinedAt.getFullYear()) * 12 +
+        (now.getMonth() - joinedAt.getMonth());
+
+      if (diffMonths >= 0 && diffMonths < 6) {
+        counts[5 - diffMonths] += 1;
+      }
+    });
+
+    return res.json({
+      labels: months,
+      data: counts,
+    });
+
+  } catch (err) {
+    console.error("Employee growth error:", err);
+    res.status(500).json({ error: "Failed to load employee growth" });
   }
 });
 

@@ -10,6 +10,7 @@ import blogRoutes from "./routes/blog.routes.js";
 import meetingRoutes from "./routes/meeting.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import applicationsRoutes from "./routes/applications.routes.js";
 
 dotenv.config();
 
@@ -28,5 +29,6 @@ app.use("/", blogRoutes);
 app.use("/", meetingRoutes);
 app.use("/", adminRoutes);
 app.use("/", notificationRoutes);
+app.use("/", applicationsRoutes);
 
 export default app;

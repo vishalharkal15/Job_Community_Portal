@@ -53,7 +53,7 @@ export default function JobDetails() {
       userRole === "admin" ||
       userRole === "super-admin");
 
-  // ⭐ APPLY Job
+  // ⭐ APPLY Job (APPLICATION-CENTRIC)
   async function applyJob() {
     if (!currentUser) return alert("Login first!");
 
@@ -63,16 +63,59 @@ export default function JobDetails() {
       await axios.put(
         `${import.meta.env.VITE_API_URL}/jobs/${id}/apply`,
         {},
-        { headers: { Authorization: `Bearer ${await currentUser.getIdToken()}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${await currentUser.getIdToken()}`
+          }
+        }
       );
 
-      loadJob();
+      // Reload job to refresh appliedBy[]
+      await loadJob();
+
     } catch (e) {
       console.error(e);
-      alert("Failed to apply");
+
+      if (e.response?.status === 400) {
+        alert(e.response.data.error || "Already applied");
+      } else {
+        alert("Failed to apply");
+      }
     }
 
     setApplying(false);
+  }
+
+  // ⭐ WITHDRAW APPLICATION
+  async function withdrawApplication() {
+    if (!currentUser) return alert("Login first!");
+
+    const confirmWithdraw = window.confirm(
+      "Are you sure you want to withdraw your application?\n\nThis action will notify the recruiter."
+    );
+
+    if (!confirmWithdraw) return;
+
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/applications/${id}/withdraw`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${await currentUser.getIdToken()}`
+          }
+        }
+      );
+
+      // Refresh job data
+      await loadJob();
+
+      alert("Application withdrawn successfully");
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to withdraw application");
+    }
   }
 
   // ⭐ SAVE Job
@@ -282,16 +325,22 @@ export default function JobDetails() {
       {!editing && (
         <div className="flex gap-3 flex-wrap mt-6">
 
-          {/* APPLY */}
-          <button
-            onClick={applyJob}
-            disabled={applying}
-            className={`px-4 py-2 rounded-lg text-white ${
-              isApplied ? "bg-green-600" : "bg-blue-600"
-            }`}
-          >
-            {isApplied ? "Applied" : applying ? "Applying..." : "Apply"}
-          </button>
+          {!isApplied ? (
+            <button
+              onClick={applyJob}
+              disabled={applying}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+            >
+              {applying ? "Applying..." : "Apply"}
+            </button>
+          ) : (
+            <button
+              onClick={withdrawApplication}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+            >
+              Withdraw Application
+            </button>
+          )}
 
           {/* SAVE */}
           <button

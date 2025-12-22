@@ -1,121 +1,159 @@
-import { useState } from "react";
-import { Users, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Users } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+
+const STAGES = [
+  "Applied",
+  "Shortlisted",
+  "Interview Scheduled",
+  "In Review",
+  "Rejected",
+  "Hired",
+];
+
+const STAGE_COLORS = {
+  Applied: "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600",
+  Shortlisted: "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700",
+  "Interview Scheduled": "bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700",
+  "In Review": "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700",
+  Rejected: "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700",
+  Hired: "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700",
+};
 
 export default function CandidatePipeline({ companyProfile }) {
-  const [pipeline, setPipeline] = useState({
-    Applied: [
-      { id: 1, name: "John Doe", position: "React Developer", appliedDate: "2024-12-01" },
-      { id: 2, name: "Jane Smith", position: "Product Manager", appliedDate: "2024-12-02" },
-    ],
-    Shortlisted: [
-      { id: 3, name: "Mike Johnson", position: "DevOps Engineer", appliedDate: "2024-11-28" },
-    ],
-    "Interview Scheduled": [
-      { id: 4, name: "Sarah Williams", position: "UX Designer", appliedDate: "2024-11-25" },
-    ],
-    "In Review": [
-      { id: 5, name: "Tom Brown", position: "Backend Developer", appliedDate: "2024-11-20" },
-    ],
-    Rejected: [],
-    Hired: [
-      { id: 6, name: "Emma Davis", position: "Frontend Developer", appliedDate: "2024-11-15" },
-    ],
-  });
+  const { currentUser } = useAuth();
+  const [pipeline, setPipeline] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const stages = ["Applied", "Shortlisted", "Interview Scheduled", "In Review", "Rejected", "Hired"];
+  useEffect(() => {
+    const loadPipeline = async () => {
+      const companyId =
+        companyProfile?.companyId ||
+        companyProfile?.id ||
+        companyProfile?.company?.id;
 
-  const stageColors = {
-    Applied: "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600",
-    Shortlisted: "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700",
-    "Interview Scheduled": "bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700",
-    "In Review": "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700",
-    Rejected: "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700",
-    Hired: "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700",
-  };
+      if (!companyId || !currentUser) return;
 
-  const handleDragStart = (e, candidate, fromStage) => {
-    e.dataTransfer.setData("candidate", JSON.stringify(candidate));
+      try {
+        const token = await currentUser.getIdToken(true);
+
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/applications/company/${companyId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const grouped = {};
+        STAGES.forEach(s => (grouped[s] = []));
+
+        res.data.applications.forEach(app => {
+          grouped[app.status || "Applied"].push(app);
+        });
+
+        setPipeline(grouped);
+        setLoading(false);
+
+      } catch (err) {
+        console.error("Pipeline load error:", err.response?.data || err.message);
+        setLoading(false);
+      }
+    };
+
+    loadPipeline();
+  }, [companyProfile, currentUser]);
+
+  const handleDragStart = (e, app, fromStage) => {
+    e.dataTransfer.setData("appId", app.id);
     e.dataTransfer.setData("fromStage", fromStage);
   };
 
-  const handleDrop = (e, toStage) => {
+  const handleDrop = async (e, toStage) => {
     e.preventDefault();
-    const candidate = JSON.parse(e.dataTransfer.getData("candidate"));
+
+    const appId = e.dataTransfer.getData("appId");
     const fromStage = e.dataTransfer.getData("fromStage");
 
-    if (fromStage !== toStage) {
-      setPipeline({
-        ...pipeline,
-        [fromStage]: pipeline[fromStage].filter((c) => c.id !== candidate.id),
-        [toStage]: [...pipeline[toStage], candidate],
-      });
+    if (fromStage === toStage) return;
+
+    const movedApp = pipeline[fromStage].find(a => a.id === appId);
+
+    setPipeline(prev => ({
+      ...prev,
+      [fromStage]: prev[fromStage].filter(a => a.id !== appId),
+      [toStage]: [...prev[toStage], { ...movedApp, status: toStage }],
+    }));
+
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/applications/${appId}/status`,
+        { status: toStage }
+      );
+    } catch (err) {
+      console.error("Status update failed:", err);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
+  if (loading)
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading candidate pipeline...
+      </div>
+    );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-          <Users className="w-8 h-8 text-blue-600" />
+        <h1 className="text-3xl font-bold flex items-center gap-3">
+          <Users className="text-blue-600" />
           Candidate Pipeline / ATS
         </h1>
-        <div className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-500">
           Drag & drop candidates between stages
-        </div>
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {stages.map((stage) => (
+        {STAGES.map(stage => (
           <div
             key={stage}
-            onDrop={(e) => handleDrop(e, stage)}
-            onDragOver={handleDragOver}
-            className={`rounded-xl border-2 p-4 min-h-[400px] ${stageColors[stage]}`}
+            onDrop={e => handleDrop(e, stage)}
+            onDragOver={e => e.preventDefault()}
+            className={`rounded-xl border-2 p-4 min-h-[420px] ${STAGE_COLORS[stage]}`}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-sm">{stage}</h2>
+            <div className="flex justify-between mb-4">
+              <h2 className="font-bold text-sm">{stage}</h2>
               <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded-full text-xs font-semibold">
-                {pipeline[stage].length}
+                {pipeline[stage]?.length || 0}
               </span>
             </div>
 
             <div className="space-y-3">
-              {pipeline[stage].map((candidate) => (
+              {pipeline[stage]?.map(app => (
                 <div
-                  key={candidate.id}
+                  key={app.id}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, candidate, stage)}
-                  className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow cursor-move hover:shadow-md transition border border-gray-200 dark:border-gray-700"
+                  onDragStart={e => handleDragStart(e, app, stage)}
+                  className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow cursor-move border"
                 >
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                    {candidate.name}
+                  <h3 className="font-semibold text-sm">
+                    {app.candidateName}
                   </h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{candidate.position}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                    Applied: {new Date(candidate.appliedDate).toLocaleDateString()}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {app.jobTitle}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Applied:{" "}
+                    {new Date(app.appliedAt.seconds * 1000).toLocaleDateString()}
                   </p>
                 </div>
               ))}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Pipeline Stats */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Pipeline Statistics</h2>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          {stages.map((stage) => (
-            <div key={stage} className="text-center">
-              <div className="text-3xl font-bold text-blue-600">{pipeline[stage].length}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{stage}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

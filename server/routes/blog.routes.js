@@ -1,6 +1,6 @@
 import express from "express";
 import { db, admin } from "../config/firebase.js";
-import { verifyToken } from "../middlewares/auth.js";
+import { verifyToken } from "../middleware/auth.js";
 import { createNotification } from "../utils/notifications.js";
 
 const router = express.Router();

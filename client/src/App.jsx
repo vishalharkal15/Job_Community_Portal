@@ -22,6 +22,7 @@ import CompanyDashboard from './pages/CompanyDashboard'
 import CompanyProfile from './pages/CompanyProfile'
 import Companies from './pages/Companies'
 import CompanyPage from './pages/CompanyPage'
+import PublicProfile from './pages/PublicProfile'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/book-meeting" element={<BookMeeting />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/users/:userId" element={<PublicProfile />} />
             <Route path="/company/edit" element={<CompanyEdit />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/auth/register" element={<Register />} />

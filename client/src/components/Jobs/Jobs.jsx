@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import JobCard from "./JobCard";
-import { Search, Briefcase, MapPin, Filter } from "lucide-react";
+import { Search, Briefcase, MapPin, Filter, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
@@ -9,6 +11,7 @@ export default function Jobs() {
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
+  const { userRole } = useAuth();
 
   useEffect(() => {
     async function loadJobs() {
@@ -140,6 +143,19 @@ export default function Jobs() {
               ))}
             </select>
           </div>
+
+          {/* Create Job Button */}
+          {(userRole === "recruiter" || userRole === "company") && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Link
+                to="/create-job"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+              >
+                <Plus className="w-5 h-5" />
+                Post a Job
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Jobs Grid */}

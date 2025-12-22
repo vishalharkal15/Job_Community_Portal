@@ -2,12 +2,21 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {
+  ThumbsUp,
+  ThumbsDown,
+  Edit,
+  Trash2,
+  Save,
+  X
+} from "lucide-react";
 
 export default function BlogActions({ type, blog, refresh }) {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
   const [tempBlog, setTempBlog] = useState(blog);
+  const uid = currentUser?.uid;
 
   async function authHeader() {
     return {
@@ -61,30 +70,29 @@ export default function BlogActions({ type, blog, refresh }) {
   }
 
   if (type === "likes") {
-    const uid = currentUser?.uid;
+    const liked = uid && blog.likes?.includes(uid);
+    const disliked = uid && blog.dislikes?.includes(uid);
 
     return (
-      <div className="flex gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-8">
         <button
           onClick={likeBlog}
-          className={`px-4 py-2 rounded ${
-            uid && blog.likes?.includes(uid)
-              ? "bg-green-700 text-white"
-              : "bg-green-500 text-white"
-          }`}
+          title="Like"
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg transition
+            ${liked ? "bg-green-600 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"}`}
         >
-          👍 Like ({blog.likes?.length || 0})
+          <ThumbsUp className="w-4 h-4" />
+          <span className="text-sm font-medium">{blog.likes?.length || 0}</span>
         </button>
 
         <button
           onClick={dislikeBlog}
-          className={`px-4 py-2 rounded ${
-            uid && blog.dislikes?.includes(uid)
-              ? "bg-orange-700 text-white"
-              : "bg-orange-500 text-white"
-          }`}
+          title="Dislike"
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg transition
+            ${disliked ? "bg-orange-600 text-white" : "bg-orange-100 text-orange-700 hover:bg-orange-200"}`}
         >
-          👎 Dislike ({blog.dislikes?.length || 0})
+          <ThumbsDown className="w-4 h-4" />
+          <span className="text-sm font-medium">{blog.dislikes?.length || 0}</span>
         </button>
       </div>
     );
@@ -93,16 +101,16 @@ export default function BlogActions({ type, blog, refresh }) {
   if (type === "edit-delete") {
     if (editMode) {
       return (
-        <div className="mb-10">
+        <div className="mb-10 space-y-3">
           <input
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full rounded"
             value={tempBlog.title}
             onChange={(e) =>
               setTempBlog({ ...tempBlog, title: e.target.value })
             }
           />
           <textarea
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full rounded"
             rows="5"
             value={tempBlog.content}
             onChange={(e) =>
@@ -110,24 +118,30 @@ export default function BlogActions({ type, blog, refresh }) {
             }
           />
           <input
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full rounded"
             placeholder="Image URL"
             value={tempBlog.image || ""}
             onChange={(e) =>
               setTempBlog({ ...tempBlog, image: e.target.value })
             }
           />
+
           <div className="flex gap-3">
             <button
               onClick={saveChanges}
-              className="bg-green-600 text-white px-4 py-2 rounded"
+              title="Save"
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
             >
+              <Save className="w-4 h-4" />
               Save
             </button>
+
             <button
               onClick={() => setEditMode(false)}
-              className="bg-gray-500 text-white px-4 py-2 rounded"
+              title="Cancel"
+              className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
             >
+              <X className="w-4 h-4" />
               Cancel
             </button>
           </div>
@@ -139,15 +153,18 @@ export default function BlogActions({ type, blog, refresh }) {
       <div className="flex gap-4 mb-10">
         <button
           onClick={() => setEditMode(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          title="Edit"
+          className="p-3 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
         >
-          Edit
+          <Edit className="w-5 h-5" />
         </button>
+
         <button
           onClick={deleteBlog}
-          className="bg-red-600 text-white px-4 py-2 rounded"
+          title="Delete"
+          className="p-3 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
         >
-          Delete
+          <Trash2 className="w-5 h-5" />
         </button>
       </div>
     );

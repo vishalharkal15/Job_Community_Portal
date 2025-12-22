@@ -37,18 +37,25 @@ export default function BlogDetails() {
           className="w-full h-64 object-cover rounded mb-4"
         />
       )}
+<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+  <h1 className="text-4xl font-bold break-words">
+    {blog.title}
+  </h1>
 
-      <h1 className="text-4xl font-bold">{blog.title}</h1>
+  {currentUser?.uid === blog.authorId && (
+    <BlogActions
+      type="edit-delete"
+      blog={blog}
+      refresh={fetchBlog}
+    />
+  )}
+</div>
 
       <p className="text-gray-600 mt-2 mb-8">
         By {blog.authorName} • {timeAgo(blog.createdAt)}
       </p>
 
       <p className="text-lg mb-10 whitespace-pre-wrap">{blog.content}</p>
-
-      {currentUser?.uid === blog.authorId && (
-        <BlogActions type="edit-delete" blog={blog} refresh={fetchBlog} />
-      )}
 
       <BlogActions type="likes" blog={blog} refresh={fetchBlog} />
 

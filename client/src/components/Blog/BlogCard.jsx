@@ -3,8 +3,6 @@ import { User, Calendar, ArrowRight } from "lucide-react";
 import { formatBlogTime } from "../../utils/date";
 
 export default function BlogCard({ blog }) {
-  
-              console.log("createdAt raw:", blog.createdAt);
   return (
     <Link
       to={`/blog/${blog.id}`}

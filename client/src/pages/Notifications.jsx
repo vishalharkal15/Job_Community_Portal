@@ -49,31 +49,6 @@ export default function Notifications() {
   }, [currentUser]);
 
   /* -----------------------------------------
-     2️⃣ AUTO MARK AS READ (DELAYED)
-  ------------------------------------------ */
-  useEffect(() => {
-    if (!currentUser || notifications.length === 0) return;
-
-    const hasUnread = notifications.some(n => n.status === "unread");
-    if (!hasUnread) return;
-
-    const timer = setTimeout(async () => {
-      const token = await currentUser.getIdToken();
-
-      await fetch("http://localhost:5000/notifications/read-all", {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, status: "read" }))
-      );
-    }, 1500); // show "New" briefly
-
-    return () => clearTimeout(timer);
-  }, [notifications, currentUser]);
-
-  /* -----------------------------------------
      3️⃣ MARK SINGLE AS READ
   ------------------------------------------ */
   const markAsRead = async (id) => {

@@ -1,6 +1,19 @@
 import { Briefcase, FileText, Users, TrendingUp, Target, Zap, Send, User, Building2, Mail, Phone, MessageSquare, CheckCircle } from "lucide-react";
-
+import { useAuth } from "../context/AuthContext";
+import { useState, useEffect } from "react";
 function Services() {
+  const { currentUser } = useAuth();
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    company: "",
+    email: "",
+    phone: "",
+    message: ""
+  });
+
+  const [sending, setSending] = useState(false);
+  const [success, setSuccess] = useState(false);
+
   const services = [
     {
       icon: Target,
@@ -45,6 +58,71 @@ function Services() {
       iconColor: "text-yellow-600"
     }
   ];
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    setServiceForm(prev => ({
+      ...prev,
+      name: currentUser.displayName || "",
+      email: currentUser.email || ""
+    }));
+  }, [currentUser]);
+
+  const handleServiceSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!currentUser) {
+      alert("Please login to request a service");
+      return;
+    }
+
+    setSending(true);
+    setSuccess(false);
+
+    try {
+      const token = await currentUser.getIdToken();
+
+      const payload = {
+        name: serviceForm.name,
+        email: serviceForm.email,
+        phone: serviceForm.phone,
+        purpose: "Service Request",
+        message: `
+  Company: ${serviceForm.company || "N/A"}
+
+  ${serviceForm.message}
+        `.trim()
+      };
+
+      const res = await fetch("http://localhost:5000/meeting-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSuccess(true);
+        setServiceForm(prev => ({
+          ...prev,
+          company: "",
+          message: ""
+        }));
+      } else {
+        alert("Failed to send request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    }
+
+    setSending(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -123,13 +201,7 @@ function Services() {
             </p>
           </div>
 
-          <form 
-            className="grid grid-cols-1 md:grid-cols-2 gap-6" 
-            onSubmit={(e) => { 
-              e.preventDefault(); 
-              alert('Request sent successfully! Our team will contact you soon.'); 
-            }}
-          >
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleServiceSubmit}>
             {/* Full Name */}
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -137,7 +209,11 @@ function Services() {
                 Full Name
               </label>
               <input 
-                name="name" 
+                name="name"
+                value={serviceForm.name}
+                onChange={(e) =>
+                  setServiceForm(prev => ({ ...prev, name: e.target.value }))
+                } 
                 required 
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="Enter your full name"
@@ -152,6 +228,10 @@ function Services() {
               </label>
               <input 
                 name="company" 
+                value={serviceForm.company}
+                onChange={(e) =>
+                  setServiceForm(prev => ({ ...prev, company: e.target.value }))
+                }
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="Your company name"
               />
@@ -166,6 +246,10 @@ function Services() {
               <input 
                 name="email" 
                 type="email" 
+                value={serviceForm.email}
+                onChange={(e) =>
+                  setServiceForm(prev => ({ ...prev, email: e.target.value }))
+                }
                 required 
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="your.email@example.com"
@@ -180,6 +264,10 @@ function Services() {
               </label>
               <input 
                 name="phone" 
+                value={serviceForm.phone}
+                onChange={(e) =>
+                  setServiceForm(prev => ({ ...prev, phone: e.target.value }))
+                }
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="+1 (555) 000-0000"
               />
@@ -192,7 +280,11 @@ function Services() {
                 Message
               </label>
               <textarea 
-                name="message" 
+                name="message"
+                value={serviceForm.message}
+                onChange={(e) =>
+                  setServiceForm(prev => ({ ...prev, message: e.target.value }))
+                }
                 rows={5} 
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                 placeholder="Tell us about your requirements..."
@@ -201,15 +293,30 @@ function Services() {
 
             {/* Submit Button */}
             <div className="md:col-span-2 flex gap-4">
-              <button 
-                type="submit" 
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold"
+              <button
+                type="submit"
+                disabled={sending}
+                className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all ${
+                  sending
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-105"
+                }`}
               >
                 <Send className="w-5 h-5" />
-                Send Request
+                {sending ? "Sending..." : "Send Request"}
               </button>
             </div>
           </form>
+          {success && (
+            <div className="md:col-span-2 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+              <p className="font-semibold text-green-800">
+                Request sent successfully!
+              </p>
+              <p className="text-sm text-green-700">
+                Our team will contact you shortly.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

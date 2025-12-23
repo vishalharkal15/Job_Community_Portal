@@ -306,19 +306,21 @@ function Profile() {
         {/* Header Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 h-28"></div>
-          <div className="px-6 pb-8">
-            <div className="-mt-16 mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <div className="flex items-end gap-4">
-                <div className="w-32 h-32 bg-white dark:bg-gray-700 rounded-full ring-4 ring-white dark:ring-gray-800 shadow-lg flex items-center justify-center">
-                  <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="px-4 sm:px-6 pb-8">
+            <div className="-mt-16 mb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white dark:bg-gray-700 rounded-full ring-4 ring-white dark:ring-gray-800 shadow-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-12 h-12 sm:w-16 sm:h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
 
-                <div className="mb-2">
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
-                    {userData?.name || currentUser.displayName || 'User'}
-                  </h1>
+                <div className="mb-2 text-center sm:text-left">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg inline-block">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight break-words">
+                      {userData?.name || currentUser.displayName || 'User'}
+                    </h1>
+                  </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       userRole === 'company' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
@@ -337,17 +339,30 @@ function Profile() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start lg:justify-end gap-2 sm:gap-3">
+                {(userRole === 'admin' || userRole === 'super-admin') && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition font-medium shadow-md hover:shadow-lg flex items-center gap-2 text-sm sm:text-base"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Admin
+                  </button>
+                )}
+                
                 <button
                   onClick={openEdit}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium shadow-md hover:shadow-lg"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition font-medium shadow-md hover:shadow-lg text-sm sm:text-base"
                 >
                   Edit Profile
                 </button>
 
                 <button
                   onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition font-medium shadow-md hover:shadow-lg"
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg transition font-medium shadow-md hover:shadow-lg text-sm sm:text-base"
                 >
                   Logout
                 </button>
@@ -364,8 +379,8 @@ function Profile() {
 
         {/* ⭐ If company exists show company card, else show Visit Companies */}
         {companyData ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 {companyData?.logoUrl && (
                   <img
@@ -393,15 +408,15 @@ function Profile() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
                 {/* ⭐ Allow editing/dashboard buttons ONLY for owners */}
                 {companyData?.owners?.includes(currentUser.uid) && (
                   <>
                     <button
                       onClick={() => navigate("/company/edit")}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition font-medium shadow-md hover:shadow-lg"
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition font-medium shadow-md hover:shadow-lg text-sm sm:text-base"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                       Edit Company
@@ -409,9 +424,9 @@ function Profile() {
 
                     <button
                       onClick={() => navigate("/company/dashboard")}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition font-medium shadow-md hover:shadow-lg"
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition font-medium shadow-md hover:shadow-lg text-sm sm:text-base"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                       Dashboard

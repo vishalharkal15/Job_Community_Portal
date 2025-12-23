@@ -224,7 +224,7 @@ export default function JobDetails() {
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-4xl font-extrabold mb-3">{job.title}</h1>
                     <div className="flex flex-wrap items-center gap-4 text-blue-100">
-                      <div className="flex items-center gap-2">
+                      <div onClick={() => navigate(`/company/${job.companyId}`)} className="flex items-center gap-2 cursor-pointer hover:underline">
                         <Building2 className="w-5 h-5" />
                         <span className="font-semibold">{job.companyName}</span>
                       </div>

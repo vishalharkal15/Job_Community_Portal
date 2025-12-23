@@ -230,7 +230,7 @@ export default function Home() {
                         </h3>
                         <p className="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2 mb-3">
                           <Building2 size={18} className="text-blue-600" />
-                          {job.company}
+                          {job.companyName}
                         </p>
                         
                         <div className="flex flex-wrap gap-2 mb-3">

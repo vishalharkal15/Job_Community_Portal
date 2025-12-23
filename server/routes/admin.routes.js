@@ -2,6 +2,8 @@ import express from "express";
 import { db } from "../config/firebase.js";
 import { verifyToken } from "../middleware/auth.js";
 import { loadUserRole, requireAdmin, requireSuperAdmin } from "../middleware/roles.js";
+import admin from "firebase-admin";
+import { createNotification } from "../utils/notifications.js";
 
 const router = express.Router();
 
@@ -129,7 +131,7 @@ router.put("/admin/companies/:id/approve", verifyToken, loadUserRole, requireAdm
 
     // 1️⃣ Mark as accepted
     await companyRef.update({
-      status: "accepted",
+      status: "approved",
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -182,7 +184,6 @@ router.put("/admin/companies/:id/reject", verifyToken, loadUserRole, requireAdmi
     const companyData = snap.data();
     const companyName = companyData.name;
 
-    // 1️⃣ Detach all users from company
     const usersSnap = await db.collection("users")
       .where("companyId", "==", companyId)
       .get();
@@ -211,10 +212,8 @@ router.put("/admin/companies/:id/reject", verifyToken, loadUserRole, requireAdmi
 
     await batch.commit();
 
-    // 2️⃣ Now safely delete company with ALL subcollections
-    await firestore.recursiveDelete(companyRef);
+    await companyRef.delete();
 
-    // 3️⃣ Notify admin
     await createNotification(
       req.uid,
       "Company Rejected Successfully",

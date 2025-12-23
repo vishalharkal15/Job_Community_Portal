@@ -145,7 +145,7 @@ function Services() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 text-center border border-gray-100 dark:border-gray-700">
             <CheckCircle className="w-8 h-8 text-blue-600 mx-auto mb-3" />
             <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-              6+
+              6
             </div>
             <div className="text-gray-600 dark:text-gray-400">Services</div>
           </div>

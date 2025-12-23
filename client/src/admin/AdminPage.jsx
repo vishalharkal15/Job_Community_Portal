@@ -444,7 +444,7 @@ export default function AdminPage() {
                   <p className="font-medium text-gray-900 dark:text-gray-100">{c.name}</p>
                   {c.owners?.[0] && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Owner: {users.find(u => u.uid === c.owners[0])?.name || 'Unknown'}
+                      Owner: {users.find(u => u.id === c.owners[0])?.name || 'Unknown'}
                     </p>
                   )}
 

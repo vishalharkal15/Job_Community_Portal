@@ -25,6 +25,7 @@ router.get(
       const snap = await db
         .collection("applications")
         .where("companyId", "==", companyId)
+        .where("archived", "==", false)
         .get();
 
       const applications = snap.docs.map(doc => ({
